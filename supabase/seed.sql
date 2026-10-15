@@ -1,0 +1,3 @@
+-- Required roles, permissions, products, and offers are inserted by the Step 2
+-- migration because every environment needs them. Add development-only order
+-- fixtures here later; never add plaintext staff passwords or production data.
