@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js'
 
 const requiredEnvironment = [
   'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
   'BOOTSTRAP_ADMIN_EMAIL',
   'BOOTSTRAP_ADMIN_PASSWORD',
   'BOOTSTRAP_ADMIN_NAME',
@@ -15,12 +14,16 @@ if (missingEnvironment.length > 0) {
 }
 
 const supabaseUrl = process.env.SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 const email = process.env.BOOTSTRAP_ADMIN_EMAIL.trim().toLowerCase()
 const password = process.env.BOOTSTRAP_ADMIN_PASSWORD
 const fullName = process.env.BOOTSTRAP_ADMIN_NAME.trim()
 const hostname = new URL(supabaseUrl).hostname
 const isLocal = hostname === '127.0.0.1' || hostname === 'localhost'
+
+if (!secretKey) {
+  throw new Error('Missing required environment variable: SUPABASE_SECRET_KEY')
+}
 
 if (!isLocal) {
   const projectRef = hostname.endsWith('.supabase.co') ? hostname.split('.')[0] : null
@@ -47,7 +50,7 @@ if (fullName.length < 2) {
   throw new Error('BOOTSTRAP_ADMIN_NAME must contain at least 2 characters.')
 }
 
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
+const supabase = createClient(supabaseUrl, secretKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 

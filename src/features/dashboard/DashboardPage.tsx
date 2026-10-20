@@ -2,23 +2,28 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { getExecutiveDashboard, getOperationsDashboard } from './api'
 import { useAuth } from '../auth/useAuth'
-import { formatMoney } from '../orders/api'
+import { getOperationsDashboard } from './api'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { ErrorState, LoadingState } from '../../shared/ui/ScreenState'
 
 function localDate(date = new Date()) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 10)
 }
 
-function firstDayOfMonth() {
-  const today = new Date()
-  return localDate(new Date(today.getFullYear(), today.getMonth(), 1))
-}
-
-function MetricCard({ label, value }: { label: string; value: string | number }) {
+function MetricCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: string | number
+  tone?: 'default' | 'attention' | 'warning'
+}) {
   return (
-    <article className="summary-card">
+    <article className={`summary-card dashboard-metric dashboard-metric-${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </article>
@@ -59,40 +64,32 @@ function Queue({
 export function DashboardPage() {
   const auth = useAuth()
   const [operationsDate, setOperationsDate] = useState(localDate())
-  const [executiveRange, setExecutiveRange] = useState({
-    from: firstDayOfMonth(),
-    to: localDate(),
-  })
-  const [draftRange, setDraftRange] = useState(executiveRange)
   const canReadOperations = auth.hasPermission('dashboard.operations.read')
-  const canReadExecutive = auth.hasPermission('dashboard.executive.read')
   const operationsQuery = useQuery({
-    queryKey: ['operations-dashboard', operationsDate],
+    queryKey: queryKeys.dashboard.operations(operationsDate),
     queryFn: () => getOperationsDashboard(operationsDate),
     enabled: canReadOperations,
-  })
-  const executiveQuery = useQuery({
-    queryKey: ['executive-dashboard', executiveRange],
-    queryFn: () => getExecutiveDashboard(executiveRange.from, executiveRange.to),
-    enabled: canReadExecutive,
   })
 
   return (
     <section className="dashboard-page">
-      <div className="page-heading-row">
-        <div>
-          <p className="eyebrow">Role-aware overview</p>
-          <h1>Dashboard</h1>
-          <p>Operational work and business performance calculated securely in Postgres.</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Today’s operations"
+        title="Dashboard"
+        description="Work that needs attention across orders and deliveries."
+        actions={
+          <Link className="secondary-action" to="/orders">
+            Open orders
+          </Link>
+        }
+      />
 
       {canReadOperations && (
         <section className="dashboard-section" aria-labelledby="operations-dashboard-title">
           <div className="dashboard-section-heading">
             <div>
-              <p className="eyebrow">Operations</p>
-              <h2 id="operations-dashboard-title">Work requiring attention</h2>
+              <p className="eyebrow">Priority queue</p>
+              <h2 id="operations-dashboard-title">What needs attention</h2>
             </div>
             <label>
               Work date
@@ -104,59 +101,59 @@ export function DashboardPage() {
             </label>
           </div>
 
-          {operationsQuery.isPending && (
-            <div className="workspace-state">Loading operations...</div>
-          )}
+          {operationsQuery.isPending && <LoadingState>Loading operations...</LoadingState>}
           {operationsQuery.isError && (
-            <div className="form-error">The operations dashboard could not be loaded.</div>
+            <ErrorState>The operations dashboard could not be loaded.</ErrorState>
           )}
           {operationsQuery.data && (
             <>
               <div className="dashboard-metrics">
-                <MetricCard label="New orders" value={operationsQuery.data.metrics.newOrders} />
                 <MetricCard
-                  label="Awaiting confirmation"
-                  value={operationsQuery.data.metrics.awaitingConfirmation}
+                  label="New orders"
+                  tone="attention"
+                  value={operationsQuery.data.metrics.newOrders}
                 />
                 <MetricCard
-                  label="Unreachable"
-                  value={operationsQuery.data.metrics.unreachableOrders}
+                  label="Need follow-up"
+                  tone="attention"
+                  value={
+                    operationsQuery.data.metrics.awaitingConfirmation +
+                    operationsQuery.data.metrics.unreachableOrders
+                  }
                 />
                 <MetricCard
-                  label="Scheduled today"
-                  value={operationsQuery.data.metrics.scheduledToday}
+                  label="Deliveries today"
+                  value={
+                    operationsQuery.data.metrics.scheduledToday +
+                    operationsQuery.data.metrics.dispatchedToday
+                  }
                 />
                 <MetricCard
-                  label="Dispatched today"
-                  value={operationsQuery.data.metrics.dispatchedToday}
-                />
-                <MetricCard
-                  label="Failed delivery"
+                  label="Delivery failures"
+                  tone="warning"
                   value={operationsQuery.data.metrics.failedDeliveries}
                 />
               </div>
               <div className="dashboard-queues">
                 <Queue
-                  title="Newest unhandled orders"
-                  empty="No new orders require attention."
-                  items={operationsQuery.data.newestUnhandled.map((item) => ({
-                    ...item,
-                    detail: new Intl.DateTimeFormat('en-NG', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(item.createdAt)),
-                  }))}
+                  title="Order follow-up"
+                  empty="No new or overdue orders require attention."
+                  items={[
+                    ...operationsQuery.data.newestUnhandled.map((item) => ({
+                      ...item,
+                      detail: `New · ${new Intl.DateTimeFormat('en-NG', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }).format(new Date(item.createdAt))}`,
+                    })),
+                    ...operationsQuery.data.overdueConfirmation.map((item) => ({
+                      ...item,
+                      detail: `Follow up · ${item.status.replaceAll('_', ' ')}`,
+                    })),
+                  ]}
                 />
                 <Queue
-                  title="Overdue confirmation"
-                  empty="No orders have waited more than 24 hours."
-                  items={operationsQuery.data.overdueConfirmation.map((item) => ({
-                    ...item,
-                    detail: item.status.replaceAll('_', ' '),
-                  }))}
-                />
-                <Queue
-                  title="Today's deliveries"
+                  title="Today’s deliveries"
                   empty="No deliveries are scheduled for this date."
                   items={operationsQuery.data.todayDeliveries.map((item) => ({
                     ...item,
@@ -172,154 +169,6 @@ export function DashboardPage() {
                   }))}
                 />
               </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {canReadExecutive && (
-        <section
-          className="dashboard-section executive-dashboard"
-          aria-labelledby="executive-title"
-        >
-          <div className="dashboard-section-heading">
-            <div>
-              <p className="eyebrow">Executive</p>
-              <h2 id="executive-title">Business performance</h2>
-            </div>
-            <form
-              className="dashboard-date-range"
-              onSubmit={(event) => {
-                event.preventDefault()
-                setExecutiveRange(draftRange)
-              }}
-            >
-              <label>
-                From
-                <input
-                  type="date"
-                  value={draftRange.from}
-                  onChange={(event) =>
-                    setDraftRange((current) => ({ ...current, from: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                To
-                <input
-                  type="date"
-                  value={draftRange.to}
-                  onChange={(event) =>
-                    setDraftRange((current) => ({ ...current, to: event.target.value }))
-                  }
-                />
-              </label>
-              <button className="secondary-action" disabled={draftRange.from > draftRange.to}>
-                Apply period
-              </button>
-            </form>
-          </div>
-
-          {executiveQuery.isPending && (
-            <div className="workspace-state">Loading performance...</div>
-          )}
-          {executiveQuery.isError && (
-            <div className="form-error">The Executive dashboard could not be loaded.</div>
-          )}
-          {executiveQuery.data && (
-            <>
-              <div className="dashboard-metrics executive-metrics">
-                <MetricCard label="Submitted" value={executiveQuery.data.metrics.submittedOrders} />
-                <MetricCard label="Confirmed" value={executiveQuery.data.metrics.confirmedOrders} />
-                <MetricCard label="Delivered" value={executiveQuery.data.metrics.deliveredOrders} />
-                <MetricCard label="Completed" value={executiveQuery.data.metrics.completedOrders} />
-                <MetricCard label="Paid" value={executiveQuery.data.metrics.paidOrders} />
-                <MetricCard
-                  label="Submitted value"
-                  value={formatMoney(
-                    executiveQuery.data.metrics.submittedValue,
-                    executiveQuery.data.currency,
-                  )}
-                />
-                <MetricCard
-                  label="Delivered value"
-                  value={formatMoney(
-                    executiveQuery.data.metrics.deliveredRevenue,
-                    executiveQuery.data.currency,
-                  )}
-                />
-                <MetricCard
-                  label="Paid revenue"
-                  value={formatMoney(
-                    executiveQuery.data.metrics.paidRevenue,
-                    executiveQuery.data.currency,
-                  )}
-                />
-              </div>
-
-              <div className="funnel-grid">
-                <MetricCard
-                  label="Confirmation conversion"
-                  value={`${executiveQuery.data.metrics.confirmationConversion}%`}
-                />
-                <MetricCard
-                  label="Delivery conversion"
-                  value={`${executiveQuery.data.metrics.deliveryConversion}%`}
-                />
-                <MetricCard
-                  label="Paid conversion"
-                  value={`${executiveQuery.data.metrics.paidConversion}%`}
-                />
-                <MetricCard
-                  label="COD success"
-                  value={`${executiveQuery.data.metrics.codSuccessRate}%`}
-                />
-                <MetricCard
-                  label="Cancellation rate"
-                  value={`${executiveQuery.data.metrics.cancellationRate}%`}
-                />
-                <MetricCard
-                  label="Failed delivery rate"
-                  value={`${executiveQuery.data.metrics.failedDeliveryRate}%`}
-                />
-              </div>
-
-              <article className="workspace-card">
-                <p className="eyebrow">Attribution</p>
-                <h2>Performance by source</h2>
-                {executiveQuery.data.sourceBreakdown.length === 0 ? (
-                  <p>No orders were submitted in this period.</p>
-                ) : (
-                  <div className="orders-table-wrap">
-                    <table className="orders-table">
-                      <thead>
-                        <tr>
-                          <th>Source</th>
-                          <th>Submitted</th>
-                          <th>Delivered</th>
-                          <th>Paid</th>
-                          <th>Submitted value</th>
-                          <th>Paid revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {executiveQuery.data.sourceBreakdown.map((source) => (
-                          <tr key={source.source}>
-                            <td>{source.source.replaceAll('_', ' ')}</td>
-                            <td>{source.submittedOrders}</td>
-                            <td>{source.deliveredOrders}</td>
-                            <td>{source.paidOrders}</td>
-                            <td>
-                              {formatMoney(source.submittedValue, executiveQuery.data.currency)}
-                            </td>
-                            <td>{formatMoney(source.paidRevenue, executiveQuery.data.currency)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </article>
             </>
           )}
         </section>

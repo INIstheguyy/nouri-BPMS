@@ -5,13 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AuthContext } from '../auth/AuthContext'
 import type { AuthContextValue } from '../auth/types'
-import { runOrderWorkflowCommand, type OrderDetail } from './api'
+import type { OrderDetail } from './api/types'
+import { runOrderWorkflowCommand } from './api/workflow'
 import { OrderWorkflowActions } from './OrderWorkflowActions'
 
-vi.mock('./api', async (importOriginal) => {
-  const original = await importOriginal<typeof import('./api')>()
-  return { ...original, runOrderWorkflowCommand: vi.fn() }
-})
+vi.mock('./api/workflow', () => ({ runOrderWorkflowCommand: vi.fn() }))
 
 const workflowMock = vi.mocked(runOrderWorkflowCommand)
 

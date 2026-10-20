@@ -1,0 +1,664 @@
+/* Responsive overrides are intentionally loaded after the desktop feature styles. */
+
+.menu-toggle {
+  display: none;
+}
+
+.mobile-data-list {
+  display: none;
+}
+
+.bottom-navigation {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem clamp(1rem, 4vw, 2rem);
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1px solid rgb(18 58 47 / 18%);
+    border-radius: 999px;
+    padding: 0.65rem 0.9rem;
+    background: #fffdf8;
+    color: #18352d;
+    font-weight: 800;
+  }
+
+  .topbar nav {
+    display: none;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    width: 100%;
+    margin: 0;
+  }
+
+  .topbar nav.navigation-open {
+    display: grid;
+  }
+
+  .topbar .nav-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 0.75rem;
+    text-align: center;
+  }
+
+  .account-actions {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    gap: 0.65rem;
+  }
+
+  .account-name {
+    display: none;
+  }
+
+  .primary-action,
+  .secondary-action,
+  .table-action,
+  .workflow-actions button,
+  .dialog-actions button,
+  .danger-action {
+    min-height: 44px;
+  }
+
+  .page-content {
+    width: min(100% - 2rem, 1180px);
+    padding: clamp(2rem, 7vw, 4rem) 0 calc(clamp(2rem, 7vw, 4rem) + 5.5rem);
+  }
+
+  .bottom-navigation {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    min-height: 68px;
+    padding: 0.35rem max(0.35rem, env(safe-area-inset-right))
+      max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left));
+    border-top: 1px solid rgb(18 58 47 / 14%);
+    background: rgb(255 253 248 / 96%);
+    box-shadow: 0 -10px 30px rgb(18 58 47 / 10%);
+    backdrop-filter: blur(16px);
+  }
+
+  .bottom-nav-link {
+    display: grid;
+    min-width: 0;
+    min-height: 56px;
+    place-content: center;
+    justify-items: center;
+    gap: 0.2rem;
+    border-radius: 12px;
+    padding: 0.3rem 0.15rem;
+    color: #64756e;
+    font-size: 0.65rem;
+    font-weight: 750;
+    line-height: 1.1;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .bottom-nav-link span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bottom-nav-link.active {
+    background: #e7eadf;
+    color: #123a2f;
+  }
+
+  .bottom-nav-more {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .bottom-nav-more.active {
+    background: #e7eadf;
+  }
+
+  .mobile-more-menu {
+    position: fixed;
+    z-index: 29;
+    right: 0.75rem;
+    bottom: calc(68px + max(0.75rem, env(safe-area-inset-bottom)));
+    display: grid;
+    min-width: min(12rem, calc(100vw - 1.5rem));
+    gap: 0.2rem;
+    padding: 0.45rem;
+    border: 1px solid rgb(18 58 47 / 14%);
+    border-radius: 16px;
+    background: rgb(255 253 248 / 98%);
+    box-shadow: 0 16px 38px rgb(18 58 47 / 18%);
+    backdrop-filter: blur(16px);
+  }
+
+  .mobile-more-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 46px;
+    border-radius: 11px;
+    padding: 0.65rem 0.75rem;
+    color: #31584c;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .mobile-more-link.active,
+  .mobile-more-link:hover {
+    background: #e7eadf;
+    color: #123a2f;
+  }
+
+  .mobile-more-link .bottom-nav-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .bottom-nav-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    stroke: currentcolor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.9;
+  }
+
+  .page-heading-row {
+    align-items: flex-start;
+  }
+
+  .page-heading-row h1 {
+    font-size: clamp(2.25rem, 9vw, 3.7rem);
+  }
+
+  .dashboard-section-heading,
+  .dashboard-date-range,
+  .workflow-panel,
+  .delivery-workflow-panel,
+  .payment-workflow-panel,
+  .page-heading-row,
+  .detail-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-section-heading,
+  .workflow-panel,
+  .delivery-workflow-panel,
+  .payment-workflow-panel {
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .order-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .order-filters .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .order-filters > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .dashboard-metrics,
+  .executive-metrics,
+  .funnel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-queues,
+  .detail-grid,
+  .detail-grid-wide,
+  .delivery-attention,
+  .customer-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid,
+  .offer-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-form-grid > :last-child,
+  .offer-fields > :last-child {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .workspace-card,
+  .workspace-state,
+  .warning-banner,
+  .attention-column {
+    border-radius: 16px;
+    padding: 1rem;
+  }
+
+  .orders-table-wrap {
+    margin-inline: -0.25rem;
+    border-radius: 16px;
+  }
+
+  .orders-table th,
+  .orders-table td {
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    gap: 0.75rem;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    font-size: 1.3rem;
+  }
+
+  .brand small {
+    font-size: 0.62rem;
+  }
+
+  .account-actions {
+    gap: 0.5rem;
+  }
+
+  .sign-out-action {
+    padding-inline: 0;
+  }
+
+  .page-content {
+    width: min(100% - 1.5rem, 1180px);
+    padding: 1.5rem 0 calc(3rem + 5.5rem);
+  }
+
+  .public-order-header,
+  .public-order-main {
+    width: min(100% - 1.5rem, 1180px);
+  }
+
+  .public-order-header {
+    padding-block: 1rem;
+  }
+
+  .public-order-main {
+    gap: 1.5rem;
+    padding-block: 1.5rem 2.5rem;
+  }
+
+  .order-promise h1,
+  .order-success h1 {
+    font-size: clamp(2.35rem, 12vw, 3.3rem);
+  }
+
+  .order-promise .hero-copy {
+    margin-block: 1rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .public-order-card {
+    border-radius: 20px;
+    padding: 1.25rem;
+  }
+
+  .public-order-card h2 {
+    margin-bottom: 1.5rem;
+    font-size: 2rem;
+  }
+
+  .public-order-form {
+    gap: 1.5rem !important;
+  }
+
+  .offer-option {
+    min-height: 76px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.7rem;
+    padding: 0.9rem;
+  }
+
+  .offer-option input {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .offer-option b {
+    font-size: 0.9rem;
+    text-align: right;
+  }
+
+  .public-order-card .form-grid {
+    gap: 0.85rem;
+  }
+
+  .public-order-card .form-grid input,
+  .public-order-card .form-grid textarea,
+  .dialog-fields input,
+  .dialog-fields select,
+  .dialog-fields textarea {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .public-order-card .form-grid textarea,
+  .dialog-fields textarea {
+    min-height: 6.5rem;
+  }
+
+  .public-order-form .form-submit {
+    position: sticky;
+    z-index: 3;
+    bottom: 0.5rem;
+    width: 100%;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgb(18 58 47 / 20%);
+  }
+
+  .manual-order-form {
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .manual-order-form fieldset {
+    padding-bottom: 1.25rem;
+  }
+
+  .manual-order-form legend {
+    margin-bottom: 0.75rem;
+    font-size: 1.3rem;
+  }
+
+  .manual-order-optional summary {
+    min-height: 2.75rem;
+    font-size: 1.3rem;
+  }
+
+  .manual-order-form input,
+  .manual-order-form select,
+  .manual-order-form textarea {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .manual-order-form textarea {
+    min-height: 6.5rem;
+  }
+
+  .manual-order-form > .form-submit {
+    position: sticky;
+    z-index: 3;
+    bottom: 0.5rem;
+    margin: 0 -0.25rem -0.25rem;
+    box-shadow: 0 10px 24px rgb(18 58 47 / 20%);
+  }
+
+  .page-heading-row h1 {
+    font-size: clamp(2.15rem, 11vw, 3rem);
+  }
+
+  .page-heading-row .primary-action,
+  .detail-actions,
+  .detail-actions > a,
+  .workflow-actions,
+  .workflow-actions > button,
+  .dialog-actions,
+  .dialog-actions > button {
+    width: 100%;
+  }
+
+  .detail-actions,
+  .workflow-actions,
+  .dialog-actions {
+    align-items: stretch;
+  }
+
+  .workflow-actions .primary-action {
+    order: -1;
+  }
+
+  .workflow-panel,
+  .delivery-workflow-panel,
+  .payment-workflow-panel {
+    border-radius: 16px;
+  }
+
+  .order-filters,
+  .customer-filters,
+  .form-grid,
+  .admin-form-grid,
+  .offer-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid > :last-child,
+  .offer-fields > :last-child {
+    grid-column: auto;
+    justify-self: stretch;
+  }
+
+  .order-filters .search-field,
+  .order-filters > button {
+    grid-column: auto;
+  }
+
+  .order-filters > button,
+  .customer-filters > button,
+  .manual-order-form > .form-submit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .status-tabs {
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+    scrollbar-width: none;
+  }
+
+  .status-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-data-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .mobile-data-card {
+    display: grid;
+    gap: 1rem;
+    border: 1px solid rgb(18 58 47 / 12%);
+    border-radius: 16px;
+    padding: 1rem;
+    background: rgb(255 255 255 / 58%);
+  }
+
+  .mobile-data-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .mobile-data-card-heading > div {
+    min-width: 0;
+  }
+
+  .mobile-data-card-heading strong,
+  .mobile-data-card-heading small {
+    display: block;
+  }
+
+  .mobile-data-card-heading strong {
+    color: #18352d;
+    font-size: 1rem;
+  }
+
+  .mobile-data-card-heading small {
+    margin-top: 0.3rem;
+    color: #64756e;
+    line-height: 1.45;
+  }
+
+  .mobile-data-card dl {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .mobile-data-card dl > div {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, 0.75fr) minmax(0, 1.25fr);
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .mobile-data-card dt {
+    color: #72817c;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .mobile-data-card dd {
+    min-width: 0;
+    margin: 0;
+    color: #18352d;
+    font-weight: 700;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-data-card-action {
+    border-top: 1px solid rgb(18 58 47 / 10%);
+    padding-top: 0.85rem;
+  }
+
+  .mobile-data-card select,
+  .mobile-data-card .table-action {
+    width: 100%;
+  }
+
+  .dashboard-metrics,
+  .executive-metrics,
+  .funnel-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .summary-card {
+    padding: 0.9rem;
+  }
+
+  .summary-card strong {
+    font-size: 1.45rem;
+  }
+
+  .pagination {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .pagination span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    text-align: center;
+  }
+
+  .pagination button {
+    min-height: 44px;
+  }
+
+  .workflow-dialog-backdrop {
+    place-items: end center;
+    padding: 0;
+  }
+
+  .workflow-dialog {
+    width: 100%;
+    max-height: min(88vh, 48rem);
+    border-radius: 22px 22px 0 0;
+  }
+
+  .workflow-dialog h2 {
+    margin-bottom: 1rem;
+    font-size: 2rem;
+  }
+
+  .dialog-fields {
+    gap: 1.25rem;
+  }
+
+  .workspace-card dl,
+  .confirmation-review dl {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .workspace-card dd,
+  .confirmation-review dd {
+    text-align: left;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar nav {
+    grid-template-columns: 1fr;
+  }
+
+  .account-actions .primary-action {
+    padding-inline: 0.8rem;
+  }
+
+  .bottom-nav-link {
+    font-size: 0.58rem;
+  }
+
+  .dashboard-metrics,
+  .executive-metrics,
+  .funnel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attention-item,
+  .line-items li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .attention-item b {
+    text-align: left;
+  }
+}

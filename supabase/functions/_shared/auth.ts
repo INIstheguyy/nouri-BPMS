@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2'
 
+import { getPublishableApiKey, getSecretApiKey } from './api-keys.ts'
 import { HttpError } from './http.ts'
 
 interface AuthorizedContext {
@@ -28,13 +29,13 @@ export async function authorize(
   }
 
   const supabaseUrl = requiredEnvironment('SUPABASE_URL')
-  const anonKey = requiredEnvironment('SUPABASE_ANON_KEY')
-  const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY')
-  const callerClient = createClient(supabaseUrl, anonKey, {
+  const publishableKey = getPublishableApiKey()
+  const secretKey = getSecretApiKey()
+  const callerClient = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: authorization } },
     auth: { autoRefreshToken: false, persistSession: false },
   })
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  const adminClient = createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 

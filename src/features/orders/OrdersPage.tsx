@@ -1,8 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 
-import { formatMoney, listDeliveryAttention, listOrders, type OrderFilters } from './api'
+import { formatMoney } from '../../shared/lib/money'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { getPositiveIntegerSearchParam, updateSearchParams } from '../../shared/lib/search-params'
+import { useIsMobileView } from '../../shared/hooks/useIsMobileView'
+import { ResponsiveDataList } from '../../shared/ui/ResponsiveDataList'
+import { listDeliveryAttention } from './api/delivery'
+import { listOrders } from './api/orders'
+import type { OrderFilters, OrderSummary } from './api/types'
 
 const statuses = [
   '',
@@ -13,6 +20,28 @@ const statuses = [
   'CANCELLED',
   'COMPLETED',
 ] as const
+
+const sources = [
+  '',
+  'LANDING_PAGE',
+  'WEBSITE',
+  'WHATSAPP',
+  'PHONE',
+  'INSTAGRAM',
+  'FACEBOOK',
+  'TIKTOK',
+  'AFFILIATE',
+  'OTHER',
+] as const
+
+const paymentMethods = ['', 'COD', 'PREPAID'] as const
+
+function isAllowedValue<const T extends readonly string[]>(
+  value: string | null,
+  allowedValues: T,
+): value is T[number] {
+  return value !== null && allowedValues.includes(value)
+}
 
 const initialFilters: OrderFilters = {
   search: '',
@@ -25,16 +54,50 @@ const initialFilters: OrderFilters = {
   pageSize: 20,
 }
 
+function nextOrderStep(order: OrderSummary) {
+  if (order.order_status === 'NEW') return 'Contact customer'
+  if (order.order_status === 'CONTACTED' || order.order_status === 'UNREACHABLE') {
+    return 'Confirm or update order'
+  }
+  if (order.order_status === 'CONFIRMED') {
+    if (order.delivery_status === 'NOT_SCHEDULED' || order.delivery_status === 'FAILED') {
+      return 'Schedule delivery'
+    }
+    if (order.delivery_status === 'SCHEDULED') return 'Dispatch delivery'
+    if (order.delivery_status === 'DISPATCHED') return 'Update delivery'
+    if (order.payment_method === 'COD' && order.payment_status === 'UNPAID') {
+      return 'Reconcile payment'
+    }
+  }
+  return 'Review order'
+}
+
 export function OrdersPage() {
-  const [filters, setFilters] = useState(initialFilters)
-  const [draftSearch, setDraftSearch] = useState('')
+  const isMobile = useIsMobileView()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = useMemo<OrderFilters>(() => {
+    const status = searchParams.get('status')
+    const source = searchParams.get('source')
+    const paymentMethod = searchParams.get('payment')
+
+    return {
+      ...initialFilters,
+      search: searchParams.get('q') ?? '',
+      status: isAllowedValue(status, statuses) ? status : '',
+      source: isAllowedValue(source, sources) ? source : '',
+      paymentMethod: isAllowedValue(paymentMethod, paymentMethods) ? paymentMethod : '',
+      from: searchParams.get('from') ?? '',
+      to: searchParams.get('to') ?? '',
+      page: getPositiveIntegerSearchParam(searchParams, 'page'),
+    }
+  }, [searchParams])
   const ordersQuery = useQuery({
-    queryKey: ['orders', filters],
+    queryKey: queryKeys.orders.list(filters),
     queryFn: () => listOrders(filters),
   })
   const queueDate = new Date().toISOString().slice(0, 10)
   const deliveryQuery = useQuery({
-    queryKey: ['delivery-attention', queueDate],
+    queryKey: queryKeys.delivery.attention(queueDate),
     queryFn: () => listDeliveryAttention(queueDate),
   })
   const pages = Math.max(1, Math.ceil((ordersQuery.data?.total ?? 0) / filters.pageSize))
@@ -44,11 +107,24 @@ export function OrdersPage() {
     deliveryQuery.data?.filter((item) => item.delivery_status === 'FAILED') ?? []
 
   function updateFilter<K extends keyof OrderFilters>(key: K, value: OrderFilters[K]) {
-    setFilters((current) => ({
-      ...current,
-      [key]: value,
-      page: key === 'page' ? Number(value) : 1,
-    }))
+    const parameterByFilter: Partial<Record<keyof OrderFilters, string>> = {
+      search: 'q',
+      status: 'status',
+      source: 'source',
+      paymentMethod: 'payment',
+      from: 'from',
+      to: 'to',
+      page: 'page',
+    }
+    const parameter = parameterByFilter[key]
+    if (!parameter) return
+
+    setSearchParams(
+      updateSearchParams(searchParams, {
+        [parameter]: String(value),
+        ...(key !== 'page' ? { page: null } : {}),
+      }),
+    )
   }
 
   return (
@@ -128,15 +204,18 @@ export function OrdersPage() {
         className="order-filters"
         onSubmit={(event) => {
           event.preventDefault()
-          updateFilter('search', draftSearch.trim())
+          const formData = new FormData(event.currentTarget)
+          const search = formData.get('search')
+          updateFilter('search', typeof search === 'string' ? search.trim() : '')
         }}
       >
         <label className="search-field">
           <span>Search</span>
           <input
-            value={draftSearch}
+            key={filters.search}
+            defaultValue={filters.search}
+            name="search"
             placeholder="Order number, customer, or phone"
-            onChange={(event) => setDraftSearch(event.target.value)}
           />
         </label>
         <label>
@@ -148,17 +227,7 @@ export function OrdersPage() {
             }
           >
             <option value="">All sources</option>
-            {[
-              'LANDING_PAGE',
-              'WEBSITE',
-              'WHATSAPP',
-              'PHONE',
-              'INSTAGRAM',
-              'FACEBOOK',
-              'TIKTOK',
-              'AFFILIATE',
-              'OTHER',
-            ].map((source) => (
+            {sources.filter(Boolean).map((source) => (
               <option key={source}>{source}</option>
             ))}
           </select>
@@ -206,58 +275,93 @@ export function OrdersPage() {
       )}
 
       {ordersQuery.data && ordersQuery.data.orders.length > 0 && (
-        <div className="orders-table-wrap">
-          <table className="orders-table">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Package</th>
-                <th>Payment</th>
-                <th>Total</th>
-                <th>Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ordersQuery.data.orders.map((order) => (
-                <tr key={order.order_id}>
-                  <td>
-                    <Link to={`/orders/${order.order_id}`}>{order.order_number}</Link>
-                    {order.possible_duplicate && (
-                      <small className="warning-label">Possible duplicate</small>
-                    )}
-                  </td>
-                  <td>
-                    <strong>{order.customer_name}</strong>
-                    <small>{order.customer_phone}</small>
-                  </td>
-                  <td>
-                    <span className={`status-chip status-${order.order_status.toLowerCase()}`}>
-                      {order.order_status}
-                    </span>
-                    <small>{order.delivery_status.replaceAll('_', ' ')}</small>
-                  </td>
-                  <td>
-                    {order.offer_name}
-                    <small>{order.source.replaceAll('_', ' ')}</small>
-                  </td>
-                  <td>
-                    {order.payment_method}
-                    <small>{order.payment_status}</small>
-                  </td>
-                  <td>{formatMoney(order.total_amount, order.currency)}</td>
-                  <td>
-                    {new Intl.DateTimeFormat('en-NG', {
+        <>
+          <div className="orders-table-wrap" hidden={isMobile}>
+            <table className="orders-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Progress</th>
+                  <th>Payment</th>
+                  <th>Total</th>
+                  <th>Next step</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ordersQuery.data.orders.map((order) => (
+                  <tr key={order.order_id}>
+                    <td>
+                      <Link to={`/orders/${order.order_id}`}>{order.order_number}</Link>
+                      {order.possible_duplicate && (
+                        <small className="warning-label">Possible duplicate</small>
+                      )}
+                    </td>
+                    <td>
+                      <strong>{order.customer_name}</strong>
+                      <small>{order.customer_phone}</small>
+                    </td>
+                    <td>
+                      <span className={`status-chip status-${order.order_status.toLowerCase()}`}>
+                        {order.order_status}
+                      </span>
+                      <small>{order.delivery_status.replaceAll('_', ' ')}</small>
+                    </td>
+                    <td>
+                      {order.payment_method}
+                      <small>{order.payment_status}</small>
+                    </td>
+                    <td>{formatMoney(order.total_amount, order.currency)}</td>
+                    <td>
+                      <Link className="table-action" to={`/orders/${order.order_id}`}>
+                        {nextOrderStep(order)}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isMobile && (
+            <ResponsiveDataList
+              ariaLabel="Orders"
+              hiddenFieldLabels={['Package', 'Received']}
+              items={ordersQuery.data.orders.map((order) => ({
+                id: order.order_id,
+                action: (
+                  <Link className="table-action" to={`/orders/${order.order_id}`}>
+                    {nextOrderStep(order)}
+                  </Link>
+                ),
+                title: <Link to={`/orders/${order.order_id}`}>{order.order_number}</Link>,
+                description: (
+                  <>
+                    {order.customer_name} · {order.customer_phone}
+                    {order.possible_duplicate ? ' · Possible duplicate' : ''}
+                  </>
+                ),
+                badge: (
+                  <span className={`status-chip status-${order.order_status.toLowerCase()}`}>
+                    {order.order_status}
+                  </span>
+                ),
+                fields: [
+                  { label: 'Package', value: order.offer_name },
+                  { label: 'Delivery', value: order.delivery_status.replaceAll('_', ' ') },
+                  { label: 'Payment', value: `${order.payment_method} · ${order.payment_status}` },
+                  { label: 'Total', value: formatMoney(order.total_amount, order.currency) },
+                  {
+                    label: 'Received',
+                    value: new Intl.DateTimeFormat('en-NG', {
                       dateStyle: 'medium',
                       timeStyle: 'short',
-                    }).format(new Date(order.created_at))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    }).format(new Date(order.created_at)),
+                  },
+                ],
+              }))}
+            />
+          )}
+        </>
       )}
 
       <div className="pagination" aria-label="Order pages">

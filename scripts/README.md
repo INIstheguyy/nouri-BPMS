@@ -8,7 +8,7 @@ Set secrets in the current shell and run the idempotent bootstrap command:
 
 ```powershell
 $env:SUPABASE_URL = "http://127.0.0.1:55321"
-$env:SUPABASE_SERVICE_ROLE_KEY = "<local-or-hosted-service-role-key>"
+$env:SUPABASE_SECRET_KEY = "<hosted-sb_secret-key>" # use SUPABASE_SERVICE_ROLE_KEY only locally
 $env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.com"
 $env:BOOTSTRAP_ADMIN_PASSWORD = "<at-least-12-characters>"
 $env:BOOTSTRAP_ADMIN_NAME = "Executive Admin"

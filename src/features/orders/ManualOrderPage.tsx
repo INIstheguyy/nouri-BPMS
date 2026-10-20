@@ -4,8 +4,12 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
-import { listActiveOffers } from '../public-order/api'
-import { createManualOrder, formatMoney } from './api'
+import { listActiveOffers } from '../catalogue/api'
+import { formatMoney } from '../../shared/lib/money'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { ErrorState } from '../../shared/ui/ScreenState'
+import { createManualOrder } from './api/orders'
 
 const optionalEmail = z.union([z.literal(''), z.string().trim().email('Enter a valid email.')])
 const schema = z.object({
@@ -30,7 +34,10 @@ type Fields = z.infer<typeof schema>
 
 export function ManualOrderPage() {
   const navigate = useNavigate()
-  const offersQuery = useQuery({ queryKey: ['public-offers'], queryFn: listActiveOffers })
+  const offersQuery = useQuery({
+    queryKey: queryKeys.catalogue.active(),
+    queryFn: listActiveOffers,
+  })
   const createMutation = useMutation({ mutationFn: createManualOrder })
   const {
     register,
@@ -70,20 +77,13 @@ export function ManualOrderPage() {
       <Link className="text-link" to="/orders">
         ← Back to orders
       </Link>
-      <div className="page-heading-row">
-        <div>
-          <p className="eyebrow">Assisted sales</p>
-          <h1>Create order</h1>
-          <p>
-            For WhatsApp, phone, and other manually assisted customers. Pricing is calculated by the
-            database.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Assisted sales"
+        title="Create order"
+        description="For WhatsApp, phone, and other manually assisted customers. Pricing is calculated by the database."
+      />
       {createMutation.isError && (
-        <div className="form-error">
-          The order could not be created. Check the details and try again.
-        </div>
+        <ErrorState>The order could not be created. Check the details and try again.</ErrorState>
       )}
       <form
         className="workspace-card manual-order-form"
@@ -95,25 +95,25 @@ export function ManualOrderPage() {
           <div className="form-grid">
             <label>
               First name
-              <input {...register('firstName')} />
+              <input autoComplete="given-name" {...register('firstName')} />
               {errors.firstName && <span className="field-error">{errors.firstName.message}</span>}
             </label>
             <label>
               Last name <small>(optional)</small>
-              <input {...register('lastName')} />
+              <input autoComplete="family-name" {...register('lastName')} />
             </label>
             <label>
               Primary phone
-              <input inputMode="tel" {...register('phone')} />
+              <input autoComplete="tel" inputMode="tel" {...register('phone')} />
               {errors.phone && <span className="field-error">{errors.phone.message}</span>}
             </label>
             <label>
               Alternative phone <small>(optional)</small>
-              <input inputMode="tel" {...register('alternativePhone')} />
+              <input autoComplete="tel" inputMode="tel" {...register('alternativePhone')} />
             </label>
             <label className="wide-field">
               Email <small>(optional)</small>
-              <input type="email" {...register('email')} />
+              <input autoComplete="email" type="email" {...register('email')} />
               {errors.email && <span className="field-error">{errors.email.message}</span>}
             </label>
           </div>
@@ -156,12 +156,12 @@ export function ManualOrderPage() {
           <div className="form-grid">
             <label>
               State
-              <input {...register('state')} />
+              <input autoComplete="address-level1" {...register('state')} />
               {errors.state && <span className="field-error">{errors.state.message}</span>}
             </label>
             <label>
               City <small>(optional)</small>
-              <input {...register('city')} />
+              <input autoComplete="address-level2" {...register('city')} />
             </label>
             <label className="wide-field">
               Area
@@ -170,7 +170,7 @@ export function ManualOrderPage() {
             </label>
             <label className="wide-field">
               Address
-              <textarea rows={3} {...register('addressLine')} />
+              <textarea autoComplete="street-address" rows={3} {...register('addressLine')} />
               {errors.addressLine && (
                 <span className="field-error">{errors.addressLine.message}</span>
               )}
@@ -181,21 +181,26 @@ export function ManualOrderPage() {
             </label>
           </div>
         </fieldset>
-        <fieldset>
-          <legend>Notes</legend>
-          <div className="form-grid">
-            <label className="wide-field">
-              Customer-facing note <small>(optional)</small>
-              <textarea rows={3} {...register('customerNote')} />
-            </label>
-            <label className="wide-field">
-              Internal note <small>(optional)</small>
-              <textarea rows={3} {...register('internalNote')} />
-            </label>
-          </div>
-        </fieldset>
+        <details className="manual-order-optional">
+          <summary>
+            <span>Notes</span>
+            <small>Optional</small>
+          </summary>
+          <fieldset>
+            <div className="form-grid">
+              <label className="wide-field">
+                Customer-facing note <small>(optional)</small>
+                <textarea rows={3} {...register('customerNote')} />
+              </label>
+              <label className="wide-field">
+                Internal note <small>(optional)</small>
+                <textarea rows={3} {...register('internalNote')} />
+              </label>
+            </div>
+          </fieldset>
+        </details>
         <button
-          className="secondary-action"
+          className="primary-action form-submit"
           disabled={createMutation.isPending || offersQuery.isPending}
           type="submit"
         >

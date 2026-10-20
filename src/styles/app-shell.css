@@ -1,0 +1,128 @@
+.app-frame {
+  min-height: 100vh;
+  background: radial-gradient(circle at 90% 0%, rgb(224 185 106 / 24%), transparent 28rem), #f4f1e8;
+}
+
+.topbar {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 4vw;
+  border-bottom: 1px solid rgb(24 53 45 / 12%);
+  background: rgb(244 241 232 / 88%);
+  backdrop-filter: blur(16px);
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-icon-action {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgb(18 58 47 / 18%);
+  border-radius: 13px;
+  background: rgb(255 253 248 / 72%);
+  color: #31584c;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.header-icon-action:hover {
+  border-color: rgb(18 58 47 / 32%);
+  background: #e7eadf;
+  color: #123a2f;
+}
+
+.header-icon-action .bottom-nav-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.create-order-action {
+  border-color: #c8841d;
+  background: #d79b2d;
+  color: #122d25;
+}
+
+.create-order-action:hover {
+  border-color: #a86e10;
+  background: #e5a638;
+  color: #122d25;
+}
+
+.account-name {
+  max-width: 11rem;
+  overflow: hidden;
+  color: #587068;
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sign-out-action {
+  color: #587068;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: #123a2f;
+  color: #f3d28e;
+  font-family: Georgia, serif;
+  font-size: 1.5rem;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand small {
+  margin-top: 0.1rem;
+  color: #64756e;
+  font-size: 0.7rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+nav {
+  display: flex;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.nav-link {
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  color: #587068;
+  text-decoration: none;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  background: #e5eadf;
+  color: #123a2f;
+}
+
+.page-content {
+  width: min(1180px, 92vw);
+  margin: 0 auto;
+  padding: 6rem 0;
+}

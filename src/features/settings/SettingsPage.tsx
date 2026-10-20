@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { queryKeys } from '../../shared/lib/query-keys'
 import {
   getOperationalSettings,
   listOfferConfiguration,
@@ -10,7 +11,9 @@ import {
   updateOperationalSettings,
 } from './api'
 import { useAuth } from '../auth/useAuth'
-import { formatMoney } from '../orders/api'
+import { formatMoney } from '../../shared/lib/money'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { ErrorState, LoadingState } from '../../shared/ui/ScreenState'
 
 function OfferEditor({ offer, canManage }: { offer: OfferConfiguration; canManage: boolean }) {
   const queryClient = useQueryClient()
@@ -21,7 +24,8 @@ function OfferEditor({ offer, canManage }: { offer: OfferConfiguration; canManag
   })
   const mutation = useMutation({
     mutationFn: updateOfferConfiguration,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['offer-configuration'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalogue.configuration() }),
   })
 
   return (
@@ -119,7 +123,7 @@ function OperationalSettingsEditor({
   const mutation = useMutation({
     mutationFn: updateOperationalSettings,
     onSuccess: (updatedSettings) => {
-      queryClient.setQueryData(['operational-settings'], updatedSettings)
+      queryClient.setQueryData(queryKeys.settings.operational(), updatedSettings)
     },
   })
 
@@ -202,27 +206,23 @@ export function SettingsPage() {
   const auth = useAuth()
   const canManage = auth.hasPermission('settings.manage')
   const settingsQuery = useQuery({
-    queryKey: ['operational-settings'],
+    queryKey: queryKeys.settings.operational(),
     queryFn: getOperationalSettings,
   })
   const offersQuery = useQuery({
-    queryKey: ['offer-configuration'],
+    queryKey: queryKeys.catalogue.configuration(),
     queryFn: listOfferConfiguration,
   })
   return (
     <section className="settings-page">
-      <div className="page-heading-row">
-        <div>
-          <p className="eyebrow">Executive administration</p>
-          <h1>Settings</h1>
-          <p>Manage the small set of operational defaults and authoritative package prices.</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Executive administration"
+        title="Settings"
+        description="Manage the small set of operational defaults and authoritative package prices."
+      />
 
-      {settingsQuery.isPending && <div className="workspace-state">Loading settings...</div>}
-      {settingsQuery.isError && (
-        <div className="form-error">We could not load operational settings.</div>
-      )}
+      {settingsQuery.isPending && <LoadingState>Loading settings...</LoadingState>}
+      {settingsQuery.isError && <ErrorState>We could not load operational settings.</ErrorState>}
       {settingsQuery.data && (
         <OperationalSettingsEditor
           key={settingsQuery.data.updatedAt}
@@ -240,10 +240,8 @@ export function SettingsPage() {
             change.
           </p>
         </div>
-        {offersQuery.isPending && <div className="workspace-state">Loading offers...</div>}
-        {offersQuery.isError && (
-          <div className="form-error">We could not load offer configuration.</div>
-        )}
+        {offersQuery.isPending && <LoadingState>Loading offers...</LoadingState>}
+        {offersQuery.isError && <ErrorState>We could not load offer configuration.</ErrorState>}
         <div>
           {offersQuery.data?.map((offer) => (
             <OfferEditor key={offer.offer_id} offer={offer} canManage={canManage} />

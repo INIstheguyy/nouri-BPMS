@@ -1,9 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { renderWithProviders } from '../../test/render'
 import { listCustomers } from './api'
 import { CustomersPage } from './CustomersPage'
 
@@ -15,14 +14,7 @@ vi.mock('./api', async (importOriginal) => {
 const listCustomersMock = vi.mocked(listCustomers)
 
 function renderPage() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <CustomersPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
+  return renderWithProviders(<CustomersPage />)
 }
 
 describe('CustomersPage', () => {

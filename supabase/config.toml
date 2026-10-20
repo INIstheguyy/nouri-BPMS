@@ -61,17 +61,17 @@ policy = "per_worker"
 
 [functions.invite-staff]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/invite-staff/index.ts"
 
 [functions.update-staff-access]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/update-staff-access/index.ts"
 
 [functions.update-staff-role]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/update-staff-role/index.ts"
 
 [functions.create-public-order]

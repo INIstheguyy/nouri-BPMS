@@ -1,29 +1,20 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { listDeliveryAttention, listOrders } from './api'
+import { renderWithProviders } from '../../test/render'
+import { listDeliveryAttention } from './api/delivery'
+import { listOrders } from './api/orders'
 import { OrdersPage } from './OrdersPage'
 
-vi.mock('./api', async (importOriginal) => {
-  const original = await importOriginal<typeof import('./api')>()
-  return { ...original, listOrders: vi.fn(), listDeliveryAttention: vi.fn() }
-})
+vi.mock('./api/delivery', () => ({ listDeliveryAttention: vi.fn() }))
+vi.mock('./api/orders', () => ({ listOrders: vi.fn() }))
 
 const listOrdersMock = vi.mocked(listOrders)
 const listDeliveryAttentionMock = vi.mocked(listDeliveryAttention)
 
 function renderPage() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <OrdersPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
+  return renderWithProviders(<OrdersPage />)
 }
 
 describe('OrdersPage', () => {
@@ -88,6 +79,10 @@ describe('OrdersPage', () => {
 
     expect(await screen.findByRole('link', { name: 'NOU-20261013-00001' })).toBeInTheDocument()
     expect(screen.getByText('Ada Okafor')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Contact customer' })).toHaveAttribute(
+      'href',
+      '/orders/91000000-0000-4000-8000-000000000001',
+    )
     expect(screen.getByText('NOU-20261013-00101')).toBeInTheDocument()
     expect(screen.getByText('NOU-20261013-00102')).toBeInTheDocument()
 

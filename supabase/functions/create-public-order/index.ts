@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { z } from 'npm:zod@3.25.76'
 
+import { getSecretApiKey } from '../_shared/api-keys.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { errorResponse, HttpError, jsonResponse } from '../_shared/http.ts'
 import { normalizeNigerianPhone } from '../_shared/phone.ts'
@@ -141,8 +142,8 @@ Deno.serve(async (request) => {
     }
 
     const supabaseUrl = requiredEnvironment('SUPABASE_URL')
-    const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY')
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    const secretKey = getSecretApiKey()
+    const adminClient = createClient(supabaseUrl, secretKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
     const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()

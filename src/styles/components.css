@@ -1,0 +1,36 @@
+.primary-action,
+.secondary-action {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1.2rem;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.primary-action {
+  background: #d79b2d;
+  color: #122d25;
+}
+
+.secondary-action {
+  background: #123a2f;
+  color: white;
+}
+
+.secondary-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.route-state {
+  display: grid;
+  max-width: 680px;
+  gap: 1rem;
+  padding: 4rem 0;
+}
+
+.route-state h1,
+.route-state p {
+  margin: 0;
+}

@@ -1,11 +1,40 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { formatMoney, getOrderDetail, phoneHref, updateOrderNotes } from './api'
+import { formatMoney } from '../../shared/lib/money'
+import { phoneHref } from '../../shared/lib/phone'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { ErrorState, LoadingState } from '../../shared/ui/ScreenState'
+import { getOrderDetail, updateOrderNotes } from './api/orders'
 import { DeliveryWorkflowActions } from './DeliveryWorkflowActions'
 import { OrderWorkflowActions } from './OrderWorkflowActions'
 import { PaymentActions } from './PaymentActions'
+import { useOrderInvalidation } from './hooks/useOrderInvalidation'
+
+function OrderDetailSection({
+  title,
+  summary,
+  children,
+}: {
+  title: string
+  summary: string
+  children: ReactNode
+}) {
+  return (
+    <details className="order-detail-section">
+      <summary>
+        <span>
+          <strong>{title}</strong>
+          <small>{summary}</small>
+        </span>
+        <span className="order-detail-section-toggle" aria-hidden="true" />
+      </summary>
+      <div className="order-detail-section-content">{children}</div>
+    </details>
+  )
+}
 
 function NotesForm({
   orderId,
@@ -16,12 +45,12 @@ function NotesForm({
   initialCustomerNote: string
   initialInternalNote: string
 }) {
-  const queryClient = useQueryClient()
+  const { invalidateOrder } = useOrderInvalidation()
   const [customerNote, setCustomerNote] = useState(initialCustomerNote)
   const [internalNote, setInternalNote] = useState(initialInternalNote)
   const notesMutation = useMutation({
     mutationFn: () => updateOrderNotes(orderId, customerNote, internalNote),
-    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ['order', orderId] }),
+    onSuccess: async () => invalidateOrder(orderId),
   })
 
   return (
@@ -66,14 +95,14 @@ function NotesForm({
 export function OrderDetailPage() {
   const { orderId = '' } = useParams()
   const detailQuery = useQuery({
-    queryKey: ['order', orderId],
+    queryKey: queryKeys.orders.detail(orderId),
     queryFn: () => getOrderDetail(orderId),
     enabled: Boolean(orderId),
   })
 
-  if (detailQuery.isPending) return <div className="workspace-state">Loading order...</div>
+  if (detailQuery.isPending) return <LoadingState>Loading order...</LoadingState>
   if (detailQuery.isError || !detailQuery.data)
-    return <div className="form-error">This order could not be loaded.</div>
+    return <ErrorState>This order could not be loaded.</ErrorState>
 
   const order = detailQuery.data
   const whatsapp = order.customer.whatsappPhone ?? order.customer.phone
@@ -83,32 +112,33 @@ export function OrderDetailPage() {
       <Link className="text-link" to="/orders">
         {'<-'} Back to orders
       </Link>
-      <div className="page-heading-row detail-heading">
-        <div>
-          <p className="eyebrow">Order detail</p>
-          <h1>{order.orderNumber}</h1>
-          <p>
-            Received{' '}
-            {new Intl.DateTimeFormat('en-NG', { dateStyle: 'full', timeStyle: 'short' }).format(
-              new Date(order.createdAt),
-            )}
-          </p>
-        </div>
-        <div className="detail-actions">
-          <span className={`status-chip status-${order.status.toLowerCase()}`}>{order.status}</span>
-          <a className="secondary-action" href={phoneHref(order.customer.phone, 'tel')}>
-            Call customer
-          </a>
-          <a
-            className="primary-action"
-            href={phoneHref(whatsapp, 'whatsapp')}
-            target="_blank"
-            rel="noreferrer"
-          >
-            WhatsApp
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        className="detail-heading"
+        eyebrow="Order detail"
+        title={order.orderNumber}
+        description={`Received ${new Intl.DateTimeFormat('en-NG', {
+          dateStyle: 'full',
+          timeStyle: 'short',
+        }).format(new Date(order.createdAt))}`}
+        actions={
+          <div className="detail-actions">
+            <span className={`status-chip status-${order.status.toLowerCase()}`}>
+              {order.status}
+            </span>
+            <a className="secondary-action" href={phoneHref(order.customer.phone, 'tel')}>
+              Call customer
+            </a>
+            <a
+              className="primary-action"
+              href={phoneHref(whatsapp, 'whatsapp')}
+              target="_blank"
+              rel="noreferrer"
+            >
+              WhatsApp
+            </a>
+          </div>
+        }
+      />
 
       {order.possibleDuplicate && (
         <div className="warning-banner">
@@ -126,103 +156,130 @@ export function OrderDetailPage() {
         order={order}
       />
 
-      <div className="detail-grid">
-        <article className="workspace-card">
-          <p className="eyebrow">Customer</p>
-          <h2>
-            <Link to={`/customers/${order.customer.id}`}>
-              {order.customer.firstName} {order.customer.lastName}
-            </Link>
-          </h2>
-          <dl>
-            <dt>Phone</dt>
-            <dd>{order.customer.phone}</dd>
-            <dt>Email</dt>
-            <dd>{order.customer.email ?? 'Not provided'}</dd>
-            <dt>Source</dt>
-            <dd>{order.source.replaceAll('_', ' ')}</dd>
-          </dl>
-        </article>
-        <article className="workspace-card">
-          <p className="eyebrow">Delivery</p>
-          <h2>{order.delivery.status.replaceAll('_', ' ')}</h2>
-          <p>
-            {order.delivery.addressLine}
-            <br />
-            {order.delivery.area}
-            {order.delivery.city ? `, ${order.delivery.city}` : ''}
-            <br />
-            {order.delivery.state}
-          </p>
-          {order.delivery.landmark && <small>Landmark: {order.delivery.landmark}</small>}
-        </article>
-        <article className="workspace-card">
-          <p className="eyebrow">Payment</p>
-          <h2>{formatMoney(order.payment.amount, order.currency)}</h2>
-          <dl>
-            <dt>Method</dt>
-            <dd>{order.payment.method}</dd>
-            <dt>Status</dt>
-            <dd>{order.payment.status}</dd>
-          </dl>
-        </article>
-      </div>
+      <div className="order-detail-sections" aria-label="Order information">
+        <OrderDetailSection
+          title="Customer"
+          summary={`${order.customer.firstName} ${order.customer.lastName} · ${order.customer.phone}`}
+        >
+          <div className="detail-info-grid">
+            <div className="detail-info-block">
+              <h2>
+                <Link to={`/customers/${order.customer.id}`}>
+                  {order.customer.firstName} {order.customer.lastName}
+                </Link>
+              </h2>
+              <dl>
+                <dt>Phone</dt>
+                <dd>{order.customer.phone}</dd>
+                <dt>Email</dt>
+                <dd>{order.customer.email ?? 'Not provided'}</dd>
+                <dt>Source</dt>
+                <dd>{order.source.replaceAll('_', ' ')}</dd>
+              </dl>
+            </div>
+          </div>
+        </OrderDetailSection>
 
-      <div className="detail-grid detail-grid-wide">
-        <article className="workspace-card">
-          <p className="eyebrow">Package</p>
-          <h2>{order.offer.name}</h2>
-          <ul className="line-items">
-            {order.items.map((item) => (
-              <li key={item.id}>
-                <span>
-                  {item.quantity} x {item.name}
-                  {item.type === 'BONUS' ? ' (bonus)' : ''}
-                </span>
-                <strong>{formatMoney(item.totalPrice, order.currency)}</strong>
-              </li>
-            ))}
-          </ul>
-          <dl className="totals">
-            <dt>Subtotal</dt>
-            <dd>{formatMoney(order.subtotalAmount, order.currency)}</dd>
-            <dt>Discount</dt>
-            <dd>-{formatMoney(order.discountAmount, order.currency)}</dd>
-            <dt>Total</dt>
-            <dd>{formatMoney(order.totalAmount, order.currency)}</dd>
-          </dl>
-        </article>
-        <article className="workspace-card">
-          <p className="eyebrow">Allowed notes</p>
+        <OrderDetailSection
+          title="Delivery"
+          summary={`${order.delivery.status.replaceAll('_', ' ')} · ${order.delivery.area}`}
+        >
+          <div className="detail-info-grid">
+            <div className="detail-info-block">
+              <h2>{order.delivery.status.replaceAll('_', ' ')}</h2>
+              <p>
+                {order.delivery.addressLine}
+                <br />
+                {order.delivery.area}
+                {order.delivery.city ? `, ${order.delivery.city}` : ''}
+                <br />
+                {order.delivery.state}
+              </p>
+              {order.delivery.landmark && <small>Landmark: {order.delivery.landmark}</small>}
+            </div>
+          </div>
+        </OrderDetailSection>
+
+        <OrderDetailSection
+          title="Payment"
+          summary={`${formatMoney(order.payment.amount, order.currency)} · ${order.payment.status}`}
+        >
+          <div className="detail-info-grid">
+            <div className="detail-info-block">
+              <h2>{formatMoney(order.payment.amount, order.currency)}</h2>
+              <dl>
+                <dt>Method</dt>
+                <dd>{order.payment.method}</dd>
+                <dt>Status</dt>
+                <dd>{order.payment.status}</dd>
+              </dl>
+            </div>
+          </div>
+        </OrderDetailSection>
+
+        <OrderDetailSection
+          title="Package and total"
+          summary={`${order.offer.name} · ${formatMoney(order.totalAmount, order.currency)}`}
+        >
+          <div className="detail-info-grid">
+            <div className="detail-info-block">
+              <h2>{order.offer.name}</h2>
+              <ul className="line-items">
+                {order.items.map((item) => (
+                  <li key={item.id}>
+                    <span>
+                      {item.quantity} x {item.name}
+                      {item.type === 'BONUS' ? ' (bonus)' : ''}
+                    </span>
+                    <strong>{formatMoney(item.totalPrice, order.currency)}</strong>
+                  </li>
+                ))}
+              </ul>
+              <dl className="totals">
+                <dt>Subtotal</dt>
+                <dd>{formatMoney(order.subtotalAmount, order.currency)}</dd>
+                <dt>Discount</dt>
+                <dd>-{formatMoney(order.discountAmount, order.currency)}</dd>
+                <dt>Total</dt>
+                <dd>{formatMoney(order.totalAmount, order.currency)}</dd>
+              </dl>
+            </div>
+          </div>
+        </OrderDetailSection>
+
+        <OrderDetailSection
+          title="Notes"
+          summary={
+            order.customerNote || order.internalNote ? 'Notes recorded' : 'No notes recorded'
+          }
+        >
           <NotesForm
             key={order.updatedAt}
             orderId={order.id}
             initialCustomerNote={order.customerNote ?? ''}
             initialInternalNote={order.internalNote ?? ''}
           />
-        </article>
-      </div>
+        </OrderDetailSection>
 
-      <article className="workspace-card timeline-card">
-        <p className="eyebrow">Timeline</p>
-        <h2>Order activity</h2>
-        <ol className="timeline">
-          {order.timeline.map((event) => (
-            <li key={event.id}>
-              <span className="status-dot" />
-              <div>
-                <strong>{event.action.replaceAll('_', ' ')}</strong>
-                <small>
-                  {new Intl.DateTimeFormat('en-NG', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  }).format(new Date(event.createdAt))}
-                </small>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </article>
+        <OrderDetailSection title="Activity" summary={`${order.timeline.length} recorded events`}>
+          <ol className="timeline">
+            {order.timeline.map((event) => (
+              <li key={event.id}>
+                <span className="status-dot" />
+                <div>
+                  <strong>{event.action.replaceAll('_', ' ')}</strong>
+                  <small>
+                    {new Intl.DateTimeFormat('en-NG', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(event.createdAt))}
+                  </small>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </OrderDetailSection>
+      </div>
     </section>
   )
 }

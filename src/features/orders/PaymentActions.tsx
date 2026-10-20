@@ -1,41 +1,32 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { ModalDialog } from '../../shared/ui/ModalDialog'
 import { useAuth } from '../auth/useAuth'
-import {
-  initializePrepaidPayment,
-  markCodPaid,
-  type OrderDetail,
-  type PrepaidInitialization,
-} from './api'
+import { initializePrepaidPayment, markCodPaid } from './api/payments'
+import type { OrderDetail, PrepaidInitialization } from './api/types'
+import { useOrderInvalidation } from './hooks/useOrderInvalidation'
 
 export function PaymentActions({ order }: { order: OrderDetail }) {
   const auth = useAuth()
-  const queryClient = useQueryClient()
+  const { invalidateOrder } = useOrderInvalidation()
   const [showCodDialog, setShowCodDialog] = useState(false)
   const [collectionNote, setCollectionNote] = useState('')
   const [initialization, setInitialization] = useState<PrepaidInitialization | null>(null)
-
-  async function refreshOrder() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['order', order.id] }),
-      queryClient.invalidateQueries({ queryKey: ['orders'] }),
-    ])
-  }
 
   const codMutation = useMutation({
     mutationFn: () => markCodPaid(order.id, collectionNote),
     onSuccess: async () => {
       setShowCodDialog(false)
       setCollectionNote('')
-      await refreshOrder()
+      await invalidateOrder(order.id)
     },
   })
   const prepaidMutation = useMutation({
     mutationFn: () => initializePrepaidPayment(order.id),
     onSuccess: async (result) => {
       setInitialization(result)
-      await refreshOrder()
+      await invalidateOrder(order.id)
     },
   })
 
@@ -94,47 +85,35 @@ export function PaymentActions({ order }: { order: OrderDetail }) {
       )}
 
       {showCodDialog && (
-        <div
-          className="workflow-dialog-backdrop"
-          role="presentation"
-          onMouseDown={() => setShowCodDialog(false)}
-        >
-          <section
-            className="workflow-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cod-payment-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <p className="eyebrow">Protected payment command</p>
-            <h2 id="cod-payment-title">Mark COD paid</h2>
-            <div className="dialog-fields">
-              <p>Confirm that the cash for this delivered order was collected.</p>
-              <label>
-                Collection note <small>(optional)</small>
-                <textarea
-                  maxLength={500}
-                  rows={3}
-                  value={collectionNote}
-                  onChange={(event) => setCollectionNote(event.target.value)}
-                />
-              </label>
-            </div>
-            <div className="dialog-actions">
-              <button type="button" onClick={() => setShowCodDialog(false)}>
-                Go back
-              </button>
-              <button
-                className="primary-action"
-                disabled={codMutation.isPending}
-                type="button"
-                onClick={() => codMutation.mutate()}
-              >
-                {codMutation.isPending ? 'Applying...' : 'Confirm cash collected'}
-              </button>
-            </div>
-          </section>
-        </div>
+        <ModalDialog labelledBy="cod-payment-title" onClose={() => setShowCodDialog(false)}>
+          <p className="eyebrow">Protected payment command</p>
+          <h2 id="cod-payment-title">Mark COD paid</h2>
+          <div className="dialog-fields">
+            <p>Confirm that the cash for this delivered order was collected.</p>
+            <label>
+              Collection note <small>(optional)</small>
+              <textarea
+                maxLength={500}
+                rows={3}
+                value={collectionNote}
+                onChange={(event) => setCollectionNote(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="dialog-actions">
+            <button type="button" onClick={() => setShowCodDialog(false)}>
+              Go back
+            </button>
+            <button
+              className="primary-action"
+              disabled={codMutation.isPending}
+              type="button"
+              onClick={() => codMutation.mutate()}
+            >
+              {codMutation.isPending ? 'Applying...' : 'Confirm cash collected'}
+            </button>
+          </div>
+        </ModalDialog>
       )}
     </section>
   )

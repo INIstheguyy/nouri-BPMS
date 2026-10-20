@@ -4,15 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { listActiveOffers } from '../public-order/api'
-import { createManualOrder } from './api'
+import { listActiveOffers } from '../catalogue/api'
+import { createManualOrder } from './api/orders'
 import { ManualOrderPage } from './ManualOrderPage'
 
-vi.mock('../public-order/api', () => ({ listActiveOffers: vi.fn() }))
-vi.mock('./api', async (importOriginal) => {
-  const original = await importOriginal<typeof import('./api')>()
-  return { ...original, createManualOrder: vi.fn() }
-})
+vi.mock('../catalogue/api', () => ({ listActiveOffers: vi.fn() }))
+vi.mock('./api/orders', () => ({ createManualOrder: vi.fn() }))
 
 const listOffersMock = vi.mocked(listActiveOffers)
 const createOrderMock = vi.mocked(createManualOrder)

@@ -5,7 +5,10 @@ import { useForm } from 'react-hook-form'
 import { Link, useLocation } from 'react-router-dom'
 import { z } from 'zod'
 
-import { createPublicOrder, listActiveOffers, type PublicOrderPayload } from './api'
+import { listActiveOffers } from '../catalogue/api'
+import { formatMoney } from '../../shared/lib/money'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { createPublicOrder, type PublicOrderPayload } from './api'
 
 const optionalEmail = z.union([
   z.literal(''),
@@ -29,14 +32,6 @@ type OrderFormFields = z.infer<typeof orderFormSchema>
 
 function optional(value: string): string | undefined {
   return value || undefined
-}
-
-function formatMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount / 100)
 }
 
 function getAttribution(search: string): PublicOrderPayload['attribution'] {
@@ -70,7 +65,10 @@ export function PublicOrderPage() {
   const location = useLocation()
   const [result, setResult] = useState<{ orderNumber: string; message: string } | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState(() => `public-order-${crypto.randomUUID()}`)
-  const offersQuery = useQuery({ queryKey: ['public-offers'], queryFn: listActiveOffers })
+  const offersQuery = useQuery({
+    queryKey: queryKeys.catalogue.active(),
+    queryFn: listActiveOffers,
+  })
   const createOrder = useMutation({
     mutationFn: ({ payload, key }: { payload: PublicOrderPayload; key: string }) =>
       createPublicOrder(payload, key),
@@ -192,7 +190,7 @@ export function PublicOrderPage() {
             </div>
           )}
 
-          <form onSubmit={(event) => void onSubmit(event)} noValidate>
+          <form className="public-order-form" onSubmit={(event) => void onSubmit(event)} noValidate>
             <fieldset className="offer-fieldset">
               <legend>Choose a package</legend>
               {offersQuery.isPending && <p>Loading current packages…</p>}

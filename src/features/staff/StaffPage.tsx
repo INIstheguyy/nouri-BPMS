@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { queryKeys } from '../../shared/lib/query-keys'
+import { useIsMobileView } from '../../shared/hooks/useIsMobileView'
+import { EmptyState, ErrorState, LoadingState } from '../../shared/ui/ScreenState'
+import { PageHeader } from '../../shared/ui/PageHeader'
+import { ResponsiveDataList } from '../../shared/ui/ResponsiveDataList'
 import {
   inviteStaff,
   listStaff,
@@ -15,6 +20,7 @@ const initialFilters: StaffFilters = { search: '', page: 1, pageSize: 20 }
 
 export function StaffPage() {
   const auth = useAuth()
+  const isMobile = useIsMobileView()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState(initialFilters)
   const [draftSearch, setDraftSearch] = useState('')
@@ -26,10 +32,10 @@ export function StaffPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const canManage = auth.hasPermission('staff.manage')
   const staffQuery = useQuery({
-    queryKey: ['staff', filters],
+    queryKey: queryKeys.staff.list(filters),
     queryFn: () => listStaff(filters),
   })
-  const refreshStaff = () => queryClient.invalidateQueries({ queryKey: ['staff'] })
+  const refreshStaff = () => queryClient.invalidateQueries({ queryKey: queryKeys.staff.all() })
   const inviteMutation = useMutation({ mutationFn: inviteStaff, onSuccess: refreshStaff })
   const accessMutation = useMutation({ mutationFn: updateStaffAccess, onSuccess: refreshStaff })
   const roleMutation = useMutation({ mutationFn: updateStaffRole, onSuccess: refreshStaff })
@@ -53,13 +59,11 @@ export function StaffPage() {
 
   return (
     <section className="staff-page">
-      <div className="page-heading-row">
-        <div>
-          <p className="eyebrow">Executive administration</p>
-          <h1>Staff</h1>
-          <p>Invite teammates, assign one operational role, and control application access.</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Executive administration"
+        title="Staff"
+        description="Invite teammates, assign one operational role, and control application access."
+      />
 
       {canManage && (
         <form className="workspace-card admin-form" onSubmit={(event) => void submitInvite(event)}>
@@ -111,9 +115,9 @@ export function StaffPage() {
             </button>
           </div>
           {inviteMutation.isError && (
-            <div className="form-error">
+            <ErrorState>
               The invitation could not be sent. Confirm the email is not already in use.
-            </div>
+            </ErrorState>
           )}
           {notice && <div className="form-success">{notice}</div>}
           <small>Local invitation emails are available in Mailpit at http://127.0.0.1:55324.</small>
@@ -137,89 +141,158 @@ export function StaffPage() {
       </form>
 
       {(accessMutation.isError || roleMutation.isError) && (
-        <div className="form-error">
-          The access change could not be saved. Refresh and try again.
-        </div>
+        <ErrorState>The access change could not be saved. Refresh and try again.</ErrorState>
       )}
-      {staffQuery.isPending && <div className="workspace-state">Loading staff...</div>}
-      {staffQuery.isError && <div className="form-error">We could not load staff.</div>}
-      {staffQuery.data?.staff.length === 0 && (
-        <div className="workspace-state">No staff match this search.</div>
-      )}
+      {staffQuery.isPending && <LoadingState>Loading staff...</LoadingState>}
+      {staffQuery.isError && <ErrorState>We could not load staff.</ErrorState>}
+      {staffQuery.data?.staff.length === 0 && <EmptyState>No staff match this search.</EmptyState>}
 
       {staffQuery.data && staffQuery.data.staff.length > 0 && (
-        <div className="orders-table-wrap">
-          <table className="orders-table staff-table">
-            <thead>
-              <tr>
-                <th>Staff member</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffQuery.data.staff.map((member) => {
+        <>
+          <div className="orders-table-wrap" hidden={isMobile}>
+            <table className="orders-table staff-table">
+              <thead>
+                <tr>
+                  <th>Staff member</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffQuery.data.staff.map((member) => {
+                  const isSelf = member.user_id === auth.access?.profileId
+                  return (
+                    <tr key={member.user_id}>
+                      <td>
+                        <strong>{member.full_name}</strong>
+                        <small>
+                          {member.email}
+                          {isSelf ? ' · You' : ''}
+                        </small>
+                      </td>
+                      <td>
+                        <select
+                          aria-label={`Role for ${member.full_name}`}
+                          disabled={!canManage || isSelf || roleMutation.isPending}
+                          value={member.role_code ?? ''}
+                          onChange={(event) =>
+                            roleMutation.mutate({
+                              userId: member.user_id,
+                              roleCode: event.target.value as StaffRole,
+                            })
+                          }
+                        >
+                          <option value="" disabled>
+                            Unassigned
+                          </option>
+                          <option value="ORDER_MANAGER">Order Manager</option>
+                          <option value="EXECUTIVE_ADMIN">Executive Admin</option>
+                        </select>
+                      </td>
+                      <td>
+                        <span
+                          className={`status-badge ${member.active ? 'status-active' : 'status-inactive'}`}
+                        >
+                          {member.active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        {new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
+                          new Date(member.created_at),
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="table-action"
+                          disabled={!canManage || isSelf || accessMutation.isPending}
+                          type="button"
+                          onClick={() =>
+                            accessMutation.mutate({
+                              userId: member.user_id,
+                              active: !member.active,
+                            })
+                          }
+                        >
+                          {member.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {isMobile && (
+            <ResponsiveDataList
+              ariaLabel="Staff"
+              items={staffQuery.data.staff.map((member) => {
                 const isSelf = member.user_id === auth.access?.profileId
-                return (
-                  <tr key={member.user_id}>
-                    <td>
-                      <strong>{member.full_name}</strong>
-                      <small>
-                        {member.email}
-                        {isSelf ? ' · You' : ''}
-                      </small>
-                    </td>
-                    <td>
-                      <select
-                        aria-label={`Role for ${member.full_name}`}
-                        disabled={!canManage || isSelf || roleMutation.isPending}
-                        value={member.role_code ?? ''}
-                        onChange={(event) =>
-                          roleMutation.mutate({
-                            userId: member.user_id,
-                            roleCode: event.target.value as StaffRole,
-                          })
-                        }
-                      >
-                        <option value="" disabled>
-                          Unassigned
-                        </option>
-                        <option value="ORDER_MANAGER">Order Manager</option>
-                        <option value="EXECUTIVE_ADMIN">Executive Admin</option>
-                      </select>
-                    </td>
-                    <td>
-                      <span
-                        className={`status-badge ${member.active ? 'status-active' : 'status-inactive'}`}
-                      >
-                        {member.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      {new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
+                return {
+                  id: member.user_id,
+                  title: member.full_name,
+                  description: `${member.email}${isSelf ? ' · You' : ''}`,
+                  badge: (
+                    <span
+                      className={`status-badge ${member.active ? 'status-active' : 'status-inactive'}`}
+                    >
+                      {member.active ? 'Active' : 'Inactive'}
+                    </span>
+                  ),
+                  fields: [
+                    {
+                      label: 'Role',
+                      value: (
+                        <select
+                          aria-label={`Role for ${member.full_name}`}
+                          disabled={!canManage || isSelf || roleMutation.isPending}
+                          value={member.role_code ?? ''}
+                          onChange={(event) =>
+                            roleMutation.mutate({
+                              userId: member.user_id,
+                              roleCode: event.target.value as StaffRole,
+                            })
+                          }
+                        >
+                          <option value="" disabled>
+                            Unassigned
+                          </option>
+                          <option value="ORDER_MANAGER">Order Manager</option>
+                          <option value="EXECUTIVE_ADMIN">Executive Admin</option>
+                        </select>
+                      ),
+                    },
+                    {
+                      label: 'Joined',
+                      value: new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
                         new Date(member.created_at),
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="table-action"
-                        disabled={!canManage || isSelf || accessMutation.isPending}
-                        type="button"
-                        onClick={() =>
-                          accessMutation.mutate({ userId: member.user_id, active: !member.active })
-                        }
-                      >
-                        {member.active ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                )
+                      ),
+                    },
+                    {
+                      label: 'Access',
+                      value: (
+                        <button
+                          className="table-action"
+                          disabled={!canManage || isSelf || accessMutation.isPending}
+                          type="button"
+                          onClick={() =>
+                            accessMutation.mutate({
+                              userId: member.user_id,
+                              active: !member.active,
+                            })
+                          }
+                        >
+                          {member.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      ),
+                    },
+                  ],
+                }
               })}
-            </tbody>
-          </table>
-        </div>
+            />
+          )}
+        </>
       )}
 
       <div className="pagination" aria-label="Staff pages">

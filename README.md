@@ -68,3 +68,7 @@ The first Executive Admin must be created with the trusted bootstrap process doc
 Production preparation, secrets, backups, rollback, observability, and hosted validation are
 documented in [`deployment/README.md`](deployment/README.md) and
 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md).
+
+The production landing-page order integration contract, offer mappings, CORS requirements,
+idempotency policy, rollout steps, and acceptance criteria are documented in
+[`LANDING_PAGE_BPMS_INTEGRATION.md`](LANDING_PAGE_BPMS_INTEGRATION.md).

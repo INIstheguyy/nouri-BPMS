@@ -1,29 +1,22 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createPublicOrder, listActiveOffers } from './api'
+import { renderWithProviders } from '../../test/render'
+import { listActiveOffers } from '../catalogue/api'
+import { createPublicOrder } from './api'
 import { PublicOrderPage } from './PublicOrderPage'
 
-vi.mock('./api', () => ({
-  createPublicOrder: vi.fn(),
-  listActiveOffers: vi.fn(),
-}))
+vi.mock('./api', () => ({ createPublicOrder: vi.fn() }))
+vi.mock('../catalogue/api', () => ({ listActiveOffers: vi.fn() }))
 
 const listOffersMock = vi.mocked(listActiveOffers)
 const createOrderMock = vi.mocked(createPublicOrder)
 
 function renderPage() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/order?utm_source=tiktok&utm_campaign=test-campaign']}>
-        <PublicOrderPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
+  return renderWithProviders(<PublicOrderPage />, {
+    route: '/order?utm_source=tiktok&utm_campaign=test-campaign',
+  })
 }
 
 describe('PublicOrderPage', () => {

@@ -2,12 +2,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 
 import { getCustomerDetail } from './api'
-import { formatMoney, phoneHref } from '../orders/api'
+import { formatMoney } from '../../shared/lib/money'
+import { phoneHref } from '../../shared/lib/phone'
+import { queryKeys } from '../../shared/lib/query-keys'
+import { useIsMobileView } from '../../shared/hooks/useIsMobileView'
+import { ResponsiveDataList } from '../../shared/ui/ResponsiveDataList'
 
 export function CustomerDetailPage() {
+  const isMobile = useIsMobileView()
   const { customerId = '' } = useParams()
   const customerQuery = useQuery({
-    queryKey: ['customer', customerId],
+    queryKey: queryKeys.customers.detail(customerId),
     queryFn: () => getCustomerDetail(customerId),
     enabled: Boolean(customerId),
   })
@@ -109,48 +114,77 @@ export function CustomerDetailPage() {
         {customer.orderHistory.length === 0 ? (
           <p>No orders are associated with this customer.</p>
         ) : (
-          <div className="orders-table-wrap">
-            <table className="orders-table">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Status</th>
-                  <th>Package</th>
-                  <th>Payment</th>
-                  <th>Delivery</th>
-                  <th>Total</th>
-                  <th>Received</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customer.orderHistory.map((order) => (
-                  <tr key={order.id}>
-                    <td>
-                      <Link to={`/orders/${order.id}`}>{order.orderNumber}</Link>
-                      <small>{order.source.replaceAll('_', ' ')}</small>
-                    </td>
-                    <td>
-                      <span className={`status-chip status-${order.status.toLowerCase()}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td>{order.offerName}</td>
-                    <td>
-                      {order.paymentMethod}
-                      <small>{order.paymentStatus}</small>
-                    </td>
-                    <td>{order.deliveryStatus.replaceAll('_', ' ')}</td>
-                    <td>{formatMoney(order.totalAmount, order.currency)}</td>
-                    <td>
-                      {new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
-                        new Date(order.createdAt),
-                      )}
-                    </td>
+          <>
+            <div className="orders-table-wrap" hidden={isMobile}>
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Package</th>
+                    <th>Payment</th>
+                    <th>Delivery</th>
+                    <th>Total</th>
+                    <th>Received</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {customer.orderHistory.map((order) => (
+                    <tr key={order.id}>
+                      <td>
+                        <Link to={`/orders/${order.id}`}>{order.orderNumber}</Link>
+                        <small>{order.source.replaceAll('_', ' ')}</small>
+                      </td>
+                      <td>
+                        <span className={`status-chip status-${order.status.toLowerCase()}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td>{order.offerName}</td>
+                      <td>
+                        {order.paymentMethod}
+                        <small>{order.paymentStatus}</small>
+                      </td>
+                      <td>{order.deliveryStatus.replaceAll('_', ' ')}</td>
+                      <td>{formatMoney(order.totalAmount, order.currency)}</td>
+                      <td>
+                        {new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
+                          new Date(order.createdAt),
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {isMobile && (
+              <ResponsiveDataList
+                ariaLabel="Customer order history"
+                items={customer.orderHistory.map((order) => ({
+                  id: order.id,
+                  title: <Link to={`/orders/${order.id}`}>{order.orderNumber}</Link>,
+                  description: order.source.replaceAll('_', ' '),
+                  badge: (
+                    <span className={`status-chip status-${order.status.toLowerCase()}`}>
+                      {order.status}
+                    </span>
+                  ),
+                  fields: [
+                    { label: 'Package', value: order.offerName },
+                    { label: 'Payment', value: `${order.paymentMethod} · ${order.paymentStatus}` },
+                    { label: 'Delivery', value: order.deliveryStatus.replaceAll('_', ' ') },
+                    { label: 'Total', value: formatMoney(order.totalAmount, order.currency) },
+                    {
+                      label: 'Received',
+                      value: new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
+                        new Date(order.createdAt),
+                      ),
+                    },
+                  ],
+                }))}
+              />
+            )}
+          </>
         )}
       </article>
     </section>

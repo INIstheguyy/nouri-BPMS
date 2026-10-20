@@ -5,18 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AuthContext } from '../auth/AuthContext'
 import type { AuthContextValue } from '../auth/types'
-import {
-  initializePrepaidPayment,
-  markCodPaid,
-  type OrderDetail,
-  type PrepaidInitialization,
-} from './api'
+import type { OrderDetail, PrepaidInitialization } from './api/types'
+import { initializePrepaidPayment, markCodPaid } from './api/payments'
 import { PaymentActions } from './PaymentActions'
 
-vi.mock('./api', async (importOriginal) => {
-  const original = await importOriginal<typeof import('./api')>()
-  return { ...original, initializePrepaidPayment: vi.fn(), markCodPaid: vi.fn() }
-})
+vi.mock('./api/payments', () => ({ initializePrepaidPayment: vi.fn(), markCodPaid: vi.fn() }))
 
 const markCodPaidMock = vi.mocked(markCodPaid)
 const initializePrepaidMock = vi.mocked(initializePrepaidPayment)
