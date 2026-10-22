@@ -6,7 +6,7 @@ export async function signInWithPassword(email: string, password: string) {
 }
 
 export async function requestPasswordReset(email: string) {
-  const redirectTo = new URL('/reset-password', window.location.origin).toString()
+  const redirectTo = new URL('/auth/callback', window.location.origin).toString()
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
 
   if (error) {

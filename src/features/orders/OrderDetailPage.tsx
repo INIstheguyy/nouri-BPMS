@@ -1,94 +1,102 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 
 import { formatMoney } from '../../shared/lib/money'
-import { phoneHref } from '../../shared/lib/phone'
 import { queryKeys } from '../../shared/lib/query-keys'
-import { PageHeader } from '../../shared/ui/PageHeader'
 import { ErrorState, LoadingState } from '../../shared/ui/ScreenState'
-import { getOrderDetail, updateOrderNotes } from './api/orders'
-import { DeliveryWorkflowActions } from './DeliveryWorkflowActions'
-import { OrderWorkflowActions } from './OrderWorkflowActions'
-import { PaymentActions } from './PaymentActions'
-import { useOrderInvalidation } from './hooks/useOrderInvalidation'
+import { getOrderDetail } from './api/orders'
+import type { OrderDetail } from './api/types'
+import { OrderThreadActions } from './components/OrderThreadActions'
 
-function OrderDetailSection({
-  title,
-  summary,
-  children,
-}: {
-  title: string
-  summary: string
-  children: ReactNode
-}) {
+const steps = ['New', 'Called', 'Confirmed', 'Delivery', 'Paid'] as const
+
+function currentStep(order: OrderDetail) {
+  if (order.status === 'NEW' || order.status === 'UNREACHABLE') return 0
+  if (order.status === 'CONTACTED') return 1
+  if (order.status === 'CANCELLED') return 0
+  if (order.delivery.status === 'NOT_SCHEDULED' || order.delivery.status === 'FAILED') return 2
+  if (order.delivery.status === 'SCHEDULED' || order.delivery.status === 'DISPATCHED') return 3
+  return 4
+}
+
+function ProgressPath({ order }: { order: OrderDetail }) {
+  const active = currentStep(order)
   return (
-    <details className="order-detail-section">
-      <summary>
-        <span>
-          <strong>{title}</strong>
-          <small>{summary}</small>
-        </span>
-        <span className="order-detail-section-toggle" aria-hidden="true" />
-      </summary>
-      <div className="order-detail-section-content">{children}</div>
-    </details>
+    <ol aria-label="Order progress" className="m-0 grid grid-cols-5 p-0" role="list">
+      {steps.map((step, index) => (
+        <li className="relative grid justify-items-center gap-1" key={step}>
+          {index > 0 && (
+            <span
+              aria-hidden="true"
+              className={`absolute top-2.5 right-1/2 h-0.5 w-full ${index <= active ? 'bg-primary-mid' : 'bg-line'}`}
+            />
+          )}
+          <span
+            className={`relative z-10 grid size-5 place-items-center rounded-full border text-[10px] font-black ${
+              index < active
+                ? 'border-primary-mid bg-primary-mid text-on-primary'
+                : index === active
+                  ? 'border-gold bg-gold text-on-gold ring-4 ring-[var(--warn-tint)]'
+                  : 'border-line bg-surface text-ink-2'
+            }`}
+          >
+            {index < active ? '✓' : index + 1}
+          </span>
+          <span className={`text-[10px] font-bold ${index === active ? 'text-ink' : 'text-ink-2'}`}>
+            {step}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 
-function NotesForm({
-  orderId,
-  initialCustomerNote,
-  initialInternalNote,
-}: {
-  orderId: string
-  initialCustomerNote: string
-  initialInternalNote: string
-}) {
-  const { invalidateOrder } = useOrderInvalidation()
-  const [customerNote, setCustomerNote] = useState(initialCustomerNote)
-  const [internalNote, setInternalNote] = useState(initialInternalNote)
-  const notesMutation = useMutation({
-    mutationFn: () => updateOrderNotes(orderId, customerNote, internalNote),
-    onSuccess: async () => invalidateOrder(orderId),
-  })
+function eventMessage(event: OrderDetail['timeline'][number]) {
+  const actor = event.actorName ?? (event.actorUserId ? 'A team member' : 'Nouri')
+  const messages: Record<string, string> = {
+    ORDER_CREATED: `${actor} created the order`,
+    PUBLIC_ORDER_CREATED: 'Customer submitted the order',
+    CUSTOMER_CONTACTED: `${actor} called the customer`,
+    CUSTOMER_UNREACHABLE: `${actor} could not reach the customer`,
+    ORDER_CONFIRMED: `${actor} confirmed the order`,
+    ORDER_CANCELLED: `${actor} cancelled the order`,
+    ORDER_COMPLETED: `${actor} completed the order`,
+    DELIVERY_SCHEDULED: `${actor} scheduled delivery`,
+    DELIVERY_RESCHEDULED: `${actor} rescheduled delivery`,
+    DELIVERY_RETRY_SCHEDULED: `${actor} scheduled a delivery retry`,
+    ORDER_DISPATCHED: `${actor} dispatched the order`,
+    ORDER_DELIVERED: `${actor} recorded a successful delivery`,
+    DELIVERY_FAILED: `${actor} recorded a failed delivery`,
+    PAYMENT_MARKED_PAID: `${actor} recorded payment`,
+    PAYMENT_CONFIRMED: 'Payment was confirmed',
+    PAYMENT_FAILED: 'Payment failed',
+  }
+  return messages[event.action] ?? `${actor} ${event.action.toLowerCase().replaceAll('_', ' ')}`
+}
+
+function TimelineEvent({ event }: { event: OrderDetail['timeline'][number] }) {
+  const isNote = Boolean(event.note)
+  const time = new Intl.DateTimeFormat('en-NG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(event.createdAt))
 
   return (
-    <form
-      className="notes-form"
-      onSubmit={(event) => {
-        event.preventDefault()
-        notesMutation.mutate()
-      }}
-    >
-      <label>
-        Customer note
-        <textarea
-          maxLength={500}
-          rows={3}
-          value={customerNote}
-          onChange={(event) => setCustomerNote(event.target.value)}
-        />
-      </label>
-      <label>
-        Internal note
-        <textarea
-          maxLength={2000}
-          rows={4}
-          value={internalNote}
-          onChange={(event) => setInternalNote(event.target.value)}
-        />
-      </label>
-      {notesMutation.isError && <div className="form-error">The notes could not be saved.</div>}
-      {notesMutation.isSuccess && (
-        <div className="form-notice" role="status">
-          Notes saved and audited.
-        </div>
-      )}
-      <button className="secondary-action" disabled={notesMutation.isPending} type="submit">
-        {notesMutation.isPending ? 'Saving...' : 'Save notes'}
-      </button>
-    </form>
+    <li className={`flex ${isNote ? 'justify-end' : 'justify-start'}`}>
+      <article
+        className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm ${
+          isNote
+            ? 'rounded-br-md border border-dashed border-warn bg-[var(--note-bg)] text-[#4a3610]'
+            : 'rounded-bl-md border border-line bg-surface text-ink shadow-[0_5px_20px_rgb(13_31_23/0.04)]'
+        }`}
+      >
+        <p className="m-0 leading-relaxed">{event.note ?? eventMessage(event)}</p>
+        <p className="mt-1.5 mb-0 text-[10px] font-semibold text-ink-2">
+          {isNote && `${event.actorName ?? 'Team'} · `}
+          {time}
+        </p>
+      </article>
+    </li>
   )
 }
 
@@ -105,181 +113,77 @@ export function OrderDetailPage() {
     return <ErrorState>This order could not be loaded.</ErrorState>
 
   const order = detailQuery.data
-  const whatsapp = order.customer.whatsappPhone ?? order.customer.phone
+  const customerName = `${order.customer.firstName} ${order.customer.lastName ?? ''}`.trim()
 
   return (
-    <section className="order-detail-page">
-      <Link className="text-link" to="/orders">
-        {'<-'} Back to orders
-      </Link>
-      <PageHeader
-        className="detail-heading"
-        eyebrow="Order detail"
-        title={order.orderNumber}
-        description={`Received ${new Intl.DateTimeFormat('en-NG', {
-          dateStyle: 'full',
-          timeStyle: 'short',
-        }).format(new Date(order.createdAt))}`}
-        actions={
-          <div className="detail-actions">
-            <span className={`status-chip status-${order.status.toLowerCase()}`}>
-              {order.status}
-            </span>
-            <a className="secondary-action" href={phoneHref(order.customer.phone, 'tel')}>
-              Call customer
-            </a>
-            <a
-              className="primary-action"
-              href={phoneHref(whatsapp, 'whatsapp')}
-              target="_blank"
-              rel="noreferrer"
-            >
-              WhatsApp
-            </a>
+    <section className="mx-auto grid h-full min-h-0 w-full max-w-[860px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[22px] border border-line bg-background shadow-[0_18px_60px_rgb(13_31_23/0.08)]">
+      <header className="z-10 border-b border-line bg-surface px-4 pt-3 pb-4 sm:px-6">
+        <div className="mb-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+          <Link
+            aria-label="Back to orders"
+            className="grid size-9 place-items-center rounded-full bg-surface-2 text-xl text-ink no-underline"
+            to="/orders"
+          >
+            ‹
+          </Link>
+          <div className="min-w-0 text-center">
+            <h1 className="m-0 truncate font-display text-[length:var(--display-sm)] font-bold text-ink">
+              {customerName}
+            </h1>
+            <p className="m-0 truncate text-[length:var(--text-xs)] text-ink-2">
+              {order.orderNumber} · {formatMoney(order.totalAmount, order.currency)}
+            </p>
           </div>
-        }
-      />
-
-      {order.possibleDuplicate && (
-        <div className="warning-banner">
-          This order may duplicate another active order from the same customer.
+          <span className="rounded-full bg-surface-2 px-2 py-1 text-[10px] font-black text-ink-2">
+            {order.payment.method}
+          </span>
         </div>
-      )}
+        <ProgressPath order={order} />
+      </header>
 
-      <OrderWorkflowActions order={order} />
-      <DeliveryWorkflowActions
-        key={`${order.delivery.status}-${order.delivery.scheduledDate ?? 'none'}`}
-        order={order}
-      />
-      <PaymentActions
-        key={`${order.payment.status}-${order.payment.providerReference ?? 'none'}`}
-        order={order}
-      />
-
-      <div className="order-detail-sections" aria-label="Order information">
-        <OrderDetailSection
-          title="Customer"
-          summary={`${order.customer.firstName} ${order.customer.lastName} · ${order.customer.phone}`}
-        >
-          <div className="detail-info-grid">
-            <div className="detail-info-block">
-              <h2>
-                <Link to={`/customers/${order.customer.id}`}>
-                  {order.customer.firstName} {order.customer.lastName}
-                </Link>
-              </h2>
-              <dl>
-                <dt>Phone</dt>
-                <dd>{order.customer.phone}</dd>
-                <dt>Email</dt>
-                <dd>{order.customer.email ?? 'Not provided'}</dd>
-                <dt>Source</dt>
-                <dd>{order.source.replaceAll('_', ' ')}</dd>
-              </dl>
-            </div>
+      <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-6" aria-label="Order activity thread">
+        {order.possibleDuplicate && (
+          <div className="mb-4 rounded-2xl border border-warn bg-[var(--warn-tint)] p-3 text-sm font-semibold text-warn">
+            This may duplicate another active order from the same customer.
           </div>
-        </OrderDetailSection>
+        )}
 
-        <OrderDetailSection
-          title="Delivery"
-          summary={`${order.delivery.status.replaceAll('_', ' ')} · ${order.delivery.area}`}
-        >
-          <div className="detail-info-grid">
-            <div className="detail-info-block">
-              <h2>{order.delivery.status.replaceAll('_', ' ')}</h2>
-              <p>
-                {order.delivery.addressLine}
-                <br />
-                {order.delivery.area}
-                {order.delivery.city ? `, ${order.delivery.city}` : ''}
-                <br />
-                {order.delivery.state}
+        <article className="mb-5 rounded-2xl bg-primary p-4 text-on-primary">
+          <p className="m-0 text-[10px] font-bold tracking-[0.12em] text-gold uppercase">
+            Order summary
+          </p>
+          <div className="mt-2 flex items-end justify-between gap-4">
+            <div>
+              <strong className="font-display text-lg">{order.offer.name}</strong>
+              <p className="mt-1 mb-0 text-xs opacity-75">
+                {order.delivery.area}, {order.delivery.state} · {order.payment.method}
               </p>
-              {order.delivery.landmark && <small>Landmark: {order.delivery.landmark}</small>}
             </div>
+            <strong className="font-display text-lg">
+              {formatMoney(order.totalAmount, order.currency)}
+            </strong>
           </div>
-        </OrderDetailSection>
+        </article>
 
-        <OrderDetailSection
-          title="Payment"
-          summary={`${formatMoney(order.payment.amount, order.currency)} · ${order.payment.status}`}
-        >
-          <div className="detail-info-grid">
-            <div className="detail-info-block">
-              <h2>{formatMoney(order.payment.amount, order.currency)}</h2>
-              <dl>
-                <dt>Method</dt>
-                <dd>{order.payment.method}</dd>
-                <dt>Status</dt>
-                <dd>{order.payment.status}</dd>
-              </dl>
-            </div>
+        {order.customerNote && (
+          <div className="mb-4 max-w-[86%] rounded-2xl rounded-bl-md border border-line bg-surface p-4 text-sm">
+            <p className="m-0 leading-relaxed">“{order.customerNote}”</p>
+            <p className="mt-1.5 mb-0 text-[10px] font-semibold text-ink-2">Customer note</p>
           </div>
-        </OrderDetailSection>
+        )}
 
-        <OrderDetailSection
-          title="Package and total"
-          summary={`${order.offer.name} · ${formatMoney(order.totalAmount, order.currency)}`}
-        >
-          <div className="detail-info-grid">
-            <div className="detail-info-block">
-              <h2>{order.offer.name}</h2>
-              <ul className="line-items">
-                {order.items.map((item) => (
-                  <li key={item.id}>
-                    <span>
-                      {item.quantity} x {item.name}
-                      {item.type === 'BONUS' ? ' (bonus)' : ''}
-                    </span>
-                    <strong>{formatMoney(item.totalPrice, order.currency)}</strong>
-                  </li>
-                ))}
-              </ul>
-              <dl className="totals">
-                <dt>Subtotal</dt>
-                <dd>{formatMoney(order.subtotalAmount, order.currency)}</dd>
-                <dt>Discount</dt>
-                <dd>-{formatMoney(order.discountAmount, order.currency)}</dd>
-                <dt>Total</dt>
-                <dd>{formatMoney(order.totalAmount, order.currency)}</dd>
-              </dl>
-            </div>
-          </div>
-        </OrderDetailSection>
+        <ol className="m-0 grid list-none gap-3 p-0">
+          {order.timeline.map((event) => (
+            <TimelineEvent event={event} key={event.id} />
+          ))}
+        </ol>
 
-        <OrderDetailSection
-          title="Notes"
-          summary={
-            order.customerNote || order.internalNote ? 'Notes recorded' : 'No notes recorded'
-          }
-        >
-          <NotesForm
-            key={order.updatedAt}
-            orderId={order.id}
-            initialCustomerNote={order.customerNote ?? ''}
-            initialInternalNote={order.internalNote ?? ''}
-          />
-        </OrderDetailSection>
-
-        <OrderDetailSection title="Activity" summary={`${order.timeline.length} recorded events`}>
-          <ol className="timeline">
-            {order.timeline.map((event) => (
-              <li key={event.id}>
-                <span className="status-dot" />
-                <div>
-                  <strong>{event.action.replaceAll('_', ' ')}</strong>
-                  <small>
-                    {new Intl.DateTimeFormat('en-NG', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(event.createdAt))}
-                  </small>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </OrderDetailSection>
+        {order.timeline.length === 0 && (
+          <p className="py-8 text-center text-sm text-ink-2">No activity has been recorded yet.</p>
+        )}
       </div>
+
+      <OrderThreadActions order={order} />
     </section>
   )
 }

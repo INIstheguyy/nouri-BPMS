@@ -50,7 +50,7 @@ Deno.serve(async (request) => {
       parsed.data.email,
       {
         data: { full_name: parsed.data.fullName },
-        redirectTo: new URL('/invite', appOrigin).toString(),
+        redirectTo: new URL('/auth/callback', appOrigin).toString(),
       },
     )
 

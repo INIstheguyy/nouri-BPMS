@@ -6,6 +6,25 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font: var(--weight-black) var(--display-lg) / var(--leading-tight) var(--font-display);
+}
+
+h2 {
+  font: var(--weight-bold) var(--display-md) / var(--leading-snug) var(--font-display);
+}
+
+h3 {
+  font: var(--weight-bold) var(--display-sm) / var(--leading-snug) var(--font-display);
 }
 
 button,

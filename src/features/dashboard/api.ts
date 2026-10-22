@@ -87,6 +87,31 @@ const executiveDashboardSchema = z.object({
 export type OperationsDashboard = z.infer<typeof operationsDashboardSchema>
 export type ExecutiveDashboard = z.infer<typeof executiveDashboardSchema>
 
+const revenuePointSchema = z.object({
+  date: z.string(),
+  revenue: z.number(),
+})
+
+export type RevenuePoint = z.infer<typeof revenuePointSchema>
+
+const feedItemSchema = z.object({
+  event_id: z.string().uuid(),
+  order_id: z.string().uuid(),
+  order_number: z.string(),
+  action: z.string(),
+  actor_name: z.string().nullable(),
+  note: z.string().nullable(),
+  created_at: z.string(),
+})
+
+export type FeedItem = z.infer<typeof feedItemSchema>
+
+export async function getRecentOrderEvents(): Promise<FeedItem[]> {
+  const { data, error } = await supabase.rpc('list_recent_order_events', { event_limit: 20 })
+  if (error) throw error
+  return z.array(feedItemSchema).parse(data)
+}
+
 export async function getOperationsDashboard(date: string): Promise<OperationsDashboard> {
   const { data, error } = await supabase.rpc('get_operations_dashboard', {
     dashboard_date: date,
@@ -105,4 +130,13 @@ export async function getExecutiveDashboard(
   })
   if (error) throw error
   return executiveDashboardSchema.parse(data)
+}
+
+export async function getRevenueSeries(dateFrom: string, dateTo: string): Promise<RevenuePoint[]> {
+  const { data, error } = await supabase.rpc('get_revenue_series', {
+    date_from: dateFrom,
+    date_to: dateTo,
+  })
+  if (error) throw error
+  return z.array(revenuePointSchema).parse(data)
 }

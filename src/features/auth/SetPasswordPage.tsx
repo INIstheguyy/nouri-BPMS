@@ -59,13 +59,19 @@ export function SetPasswordPage({ mode }: { mode: 'invite' | 'recovery' }) {
     try {
       await updatePassword(password)
       await auth.refreshAccess()
-      void navigate('/dashboard', { replace: true })
+      void navigate('/', { replace: true })
     } catch {
       setSubmitError('We could not update your password. Request a new link and try again.')
     }
   })
 
-  const effectiveLinkStatus = auth.session ? 'ready' : tokenHash ? linkStatus : 'invalid'
+  const effectiveLinkStatus = auth.session
+    ? 'ready'
+    : auth.status === 'loading'
+      ? 'checking'
+      : tokenHash
+        ? linkStatus
+        : 'invalid'
 
   if (effectiveLinkStatus === 'checking') {
     return <div className="auth-card">Verifying your secure link…</div>
@@ -89,7 +95,9 @@ export function SetPasswordPage({ mode }: { mode: 'invite' | 'recovery' }) {
   return (
     <div className="auth-card">
       <p className="eyebrow">{mode === 'invite' ? 'Accept invitation' : 'Account recovery'}</p>
-      <h2>{mode === 'invite' ? 'Set your password' : 'Choose a new password'}</h2>
+      <h2>
+        {mode === 'invite' ? 'Welcome to Nouri. Set your password.' : 'Choose a new password'}
+      </h2>
       <p className="form-copy">Use at least 12 characters and keep it unique to Nouri.</p>
       {submitError && <div className="form-error">{submitError}</div>}
       <form onSubmit={(event) => void onSubmit(event)} noValidate>

@@ -64,9 +64,27 @@ export function PublicOnlyRoute() {
   const auth = useAuth()
 
   if (auth.status === 'loading') return <LoadingScreen />
-  if (auth.status === 'authenticated') return <Navigate to="/dashboard" replace />
+  if (auth.status === 'authenticated') return <Navigate to="/" replace />
 
   return <Outlet />
+}
+
+export function RoleRedirect() {
+  const auth = useAuth()
+  const isExecutive = auth.access?.roles.includes('EXECUTIVE_ADMIN') ?? false
+
+  return <Navigate to={isExecutive ? '/analytics' : '/home'} replace />
+}
+
+export function RoleRoute({
+  role,
+  children,
+}: PropsWithChildren<{ role: 'EXECUTIVE_ADMIN' | 'ORDER_MANAGER' }>) {
+  const auth = useAuth()
+
+  if (!auth.access?.roles.includes(role)) return <Navigate to="/" replace />
+
+  return children
 }
 
 export function PermissionRoute({
@@ -75,7 +93,7 @@ export function PermissionRoute({
 }: PropsWithChildren<{ permission: string }>) {
   const auth = useAuth()
 
-  if (!auth.hasPermission(permission)) return <Navigate to="/dashboard" replace />
+  if (!auth.hasPermission(permission)) return <Navigate to="/" replace />
 
   return children
 }

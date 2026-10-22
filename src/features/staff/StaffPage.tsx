@@ -1,319 +1,257 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { queryKeys } from '../../shared/lib/query-keys'
-import { useIsMobileView } from '../../shared/hooks/useIsMobileView'
+import { BottomSheet } from '../../shared/ui/BottomSheet'
 import { EmptyState, ErrorState, LoadingState } from '../../shared/ui/ScreenState'
-import { PageHeader } from '../../shared/ui/PageHeader'
-import { ResponsiveDataList } from '../../shared/ui/ResponsiveDataList'
-import {
-  inviteStaff,
-  listStaff,
-  type StaffFilters,
-  type StaffRole,
-  updateStaffAccess,
-  updateStaffRole,
-} from './api'
+import { useToast } from '../../shared/ui/Toast'
 import { useAuth } from '../auth/useAuth'
+import { inviteStaff, listStaff, type StaffMember, type StaffRole, updateStaffAccess } from './api'
 
-const initialFilters: StaffFilters = { search: '', page: 1, pageSize: 20 }
+type StaffPageData = Awaited<ReturnType<typeof listStaff>>
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
+function roleLabel(role: string | null) {
+  if (!role) return 'Unassigned'
+  return role
+    .toLowerCase()
+    .split('_')
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+function StaffRow({
+  member,
+  isSelf,
+  canManage,
+  isUpdating,
+  onToggle,
+}: {
+  member: StaffMember
+  isSelf: boolean
+  canManage: boolean
+  isUpdating: boolean
+  onToggle: () => void
+}) {
+  return (
+    <article className="staff-row">
+      <span className="staff-avatar">{initials(member.full_name)}</span>
+      <span className="staff-identity">
+        <strong>
+          {member.full_name}
+          {isSelf && <small> (you)</small>}
+        </strong>
+        <span>{member.email}</span>
+      </span>
+      <span className="staff-role">{roleLabel(member.role_code)}</span>
+      <span className={`staff-status ${member.active ? 'is-active' : ''}`}>
+        {member.active ? 'Active' : 'Inactive'}
+      </span>
+      <label className="staff-switch">
+        <span className="sr-only">Active access for {member.full_name}</span>
+        <input
+          checked={member.active}
+          disabled={!canManage || isSelf || isUpdating}
+          onChange={onToggle}
+          type="checkbox"
+        />
+        <span aria-hidden="true" />
+      </label>
+    </article>
+  )
+}
 
 export function StaffPage() {
   const auth = useAuth()
-  const isMobile = useIsMobileView()
+  const toast = useToast()
   const queryClient = useQueryClient()
-  const [filters, setFilters] = useState(initialFilters)
-  const [draftSearch, setDraftSearch] = useState('')
+  const canManage = auth.hasPermission('staff.manage')
+  const [search, setSearch] = useState('')
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [invite, setInvite] = useState({
     email: '',
     fullName: '',
     roleCode: 'ORDER_MANAGER' as StaffRole,
   })
-  const [notice, setNotice] = useState<string | null>(null)
-  const canManage = auth.hasPermission('staff.manage')
+  const filters = { search: '', page: 1, pageSize: 100 }
   const staffQuery = useQuery({
     queryKey: queryKeys.staff.list(filters),
     queryFn: () => listStaff(filters),
   })
-  const refreshStaff = () => queryClient.invalidateQueries({ queryKey: queryKeys.staff.all() })
-  const inviteMutation = useMutation({ mutationFn: inviteStaff, onSuccess: refreshStaff })
-  const accessMutation = useMutation({ mutationFn: updateStaffAccess, onSuccess: refreshStaff })
-  const roleMutation = useMutation({ mutationFn: updateStaffRole, onSuccess: refreshStaff })
-  const pages = Math.max(1, Math.ceil((staffQuery.data?.total ?? 0) / filters.pageSize))
+  const visibleStaff = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase()
+    const staff = staffQuery.data?.staff ?? []
+    if (!query) return staff
+    return staff.filter(
+      (member) =>
+        member.full_name.toLocaleLowerCase().includes(query) ||
+        member.email.toLocaleLowerCase().includes(query),
+    )
+  }, [search, staffQuery.data])
 
-  async function submitInvite(event: React.FormEvent) {
-    event.preventDefault()
-    setNotice(null)
-    try {
-      await inviteMutation.mutateAsync({
-        email: invite.email.trim().toLowerCase(),
-        fullName: invite.fullName.trim(),
-        roleCode: invite.roleCode,
+  const accessMutation = useMutation({
+    mutationFn: updateStaffAccess,
+    onMutate: async ({ userId, active }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.staff.all() })
+      const previous = queryClient.getQueriesData<StaffPageData>({
+        queryKey: queryKeys.staff.all(),
       })
+      queryClient.setQueriesData<StaffPageData>({ queryKey: queryKeys.staff.all() }, (current) =>
+        current
+          ? {
+              ...current,
+              staff: current.staff.map((member) =>
+                member.user_id === userId ? { ...member, active } : member,
+              ),
+            }
+          : current,
+      )
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.staff.all() }),
+  })
+  const inviteMutation = useMutation({
+    mutationFn: inviteStaff,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.staff.all() })
+      setSheetOpen(false)
       setInvite({ email: '', fullName: '', roleCode: 'ORDER_MANAGER' })
-      setNotice('Invitation sent. The staff member can use the emailed link to set a password.')
-    } catch {
-      // The mutation state renders a stable, non-sensitive message.
-    }
-  }
+      toast('Invitation sent successfully.')
+    },
+  })
 
   return (
-    <section className="staff-page">
-      <PageHeader
-        eyebrow="Executive administration"
-        title="Staff"
-        description="Invite teammates, assign one operational role, and control application access."
-      />
+    <section className="staff-page staff-redesign">
+      <header className="staff-heading">
+        <div>
+          <p className="eyebrow">Team access</p>
+          <h1>Staff</h1>
+          <p>Invite teammates and control who can access operations.</p>
+        </div>
+        {canManage && (
+          <button className="staff-invite" onClick={() => setSheetOpen(true)} type="button">
+            + Invite
+          </button>
+        )}
+      </header>
 
-      {canManage && (
-        <form className="workspace-card admin-form" onSubmit={(event) => void submitInvite(event)}>
-          <div>
-            <p className="eyebrow">New account</p>
-            <h2>Invite staff member</h2>
-          </div>
-          <div className="admin-form-grid">
-            <label>
-              Full name
-              <input
-                required
-                minLength={2}
-                maxLength={160}
-                value={invite.fullName}
-                onChange={(event) =>
-                  setInvite((current) => ({ ...current, fullName: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              Email
-              <input
-                required
-                type="email"
-                value={invite.email}
-                onChange={(event) =>
-                  setInvite((current) => ({ ...current, email: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              Role
-              <select
-                value={invite.roleCode}
-                onChange={(event) =>
-                  setInvite((current) => ({
-                    ...current,
-                    roleCode: event.target.value as StaffRole,
-                  }))
-                }
-              >
-                <option value="ORDER_MANAGER">Order Manager</option>
-                <option value="EXECUTIVE_ADMIN">Executive Admin</option>
-              </select>
-            </label>
-            <button className="secondary-action" disabled={inviteMutation.isPending} type="submit">
-              {inviteMutation.isPending ? 'Sending...' : 'Send invitation'}
-            </button>
-          </div>
+      <label className="people-search staff-search">
+        <span className="sr-only">Search staff</span>
+        <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+          <path
+            d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="2"
+          />
+        </svg>
+        <input
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search name or email"
+          type="search"
+          value={search}
+        />
+      </label>
+
+      {accessMutation.isError && <ErrorState>The access change could not be saved.</ErrorState>}
+      {staffQuery.isPending && <LoadingState>Loading staff...</LoadingState>}
+      {staffQuery.isError && <ErrorState>Staff could not be loaded.</ErrorState>}
+      {!staffQuery.isPending && visibleStaff.length === 0 && (
+        <EmptyState>No staff match this search.</EmptyState>
+      )}
+
+      <div className="staff-list">
+        {visibleStaff.map((member) => {
+          const isSelf = member.user_id === auth.access?.profileId
+          return (
+            <StaffRow
+              key={member.user_id}
+              canManage={canManage}
+              isSelf={isSelf}
+              isUpdating={
+                accessMutation.isPending && accessMutation.variables?.userId === member.user_id
+              }
+              member={member}
+              onToggle={() =>
+                accessMutation.mutate({ userId: member.user_id, active: !member.active })
+              }
+            />
+          )
+        })}
+      </div>
+
+      <BottomSheet
+        isOpen={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title="Invite staff member"
+      >
+        <form
+          className="invite-sheet-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            inviteMutation.mutate({
+              email: invite.email.trim().toLowerCase(),
+              fullName: invite.fullName.trim(),
+              roleCode: invite.roleCode,
+            })
+          }}
+        >
+          <label>
+            Full name
+            <input
+              maxLength={160}
+              minLength={2}
+              onChange={(event) =>
+                setInvite((current) => ({ ...current, fullName: event.target.value }))
+              }
+              required
+              value={invite.fullName}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              onChange={(event) =>
+                setInvite((current) => ({ ...current, email: event.target.value }))
+              }
+              required
+              type="email"
+              value={invite.email}
+            />
+          </label>
+          <label>
+            Role
+            <select
+              onChange={(event) =>
+                setInvite((current) => ({ ...current, roleCode: event.target.value as StaffRole }))
+              }
+              value={invite.roleCode}
+            >
+              <option value="ORDER_MANAGER">Order Manager</option>
+              <option value="EXECUTIVE_ADMIN">Executive Admin</option>
+            </select>
+          </label>
           {inviteMutation.isError && (
             <ErrorState>
-              The invitation could not be sent. Confirm the email is not already in use.
+              The invitation could not be sent. Check whether that email is already in use.
             </ErrorState>
           )}
-          {notice && <div className="form-success">{notice}</div>}
-          <small>Local invitation emails are available in Mailpit at http://127.0.0.1:55324.</small>
+          <button className="staff-invite" disabled={inviteMutation.isPending} type="submit">
+            {inviteMutation.isPending ? 'Sending…' : 'Send invitation'}
+          </button>
         </form>
-      )}
-
-      <form
-        className="customer-filters"
-        onSubmit={(event) => {
-          event.preventDefault()
-          setFilters((current) => ({ ...current, search: draftSearch.trim(), page: 1 }))
-        }}
-      >
-        <label>
-          <span>Search by name or email</span>
-          <input value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} />
-        </label>
-        <button className="secondary-action" type="submit">
-          Search
-        </button>
-      </form>
-
-      {(accessMutation.isError || roleMutation.isError) && (
-        <ErrorState>The access change could not be saved. Refresh and try again.</ErrorState>
-      )}
-      {staffQuery.isPending && <LoadingState>Loading staff...</LoadingState>}
-      {staffQuery.isError && <ErrorState>We could not load staff.</ErrorState>}
-      {staffQuery.data?.staff.length === 0 && <EmptyState>No staff match this search.</EmptyState>}
-
-      {staffQuery.data && staffQuery.data.staff.length > 0 && (
-        <>
-          <div className="orders-table-wrap" hidden={isMobile}>
-            <table className="orders-table staff-table">
-              <thead>
-                <tr>
-                  <th>Staff member</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Joined</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffQuery.data.staff.map((member) => {
-                  const isSelf = member.user_id === auth.access?.profileId
-                  return (
-                    <tr key={member.user_id}>
-                      <td>
-                        <strong>{member.full_name}</strong>
-                        <small>
-                          {member.email}
-                          {isSelf ? ' · You' : ''}
-                        </small>
-                      </td>
-                      <td>
-                        <select
-                          aria-label={`Role for ${member.full_name}`}
-                          disabled={!canManage || isSelf || roleMutation.isPending}
-                          value={member.role_code ?? ''}
-                          onChange={(event) =>
-                            roleMutation.mutate({
-                              userId: member.user_id,
-                              roleCode: event.target.value as StaffRole,
-                            })
-                          }
-                        >
-                          <option value="" disabled>
-                            Unassigned
-                          </option>
-                          <option value="ORDER_MANAGER">Order Manager</option>
-                          <option value="EXECUTIVE_ADMIN">Executive Admin</option>
-                        </select>
-                      </td>
-                      <td>
-                        <span
-                          className={`status-badge ${member.active ? 'status-active' : 'status-inactive'}`}
-                        >
-                          {member.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td>
-                        {new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
-                          new Date(member.created_at),
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="table-action"
-                          disabled={!canManage || isSelf || accessMutation.isPending}
-                          type="button"
-                          onClick={() =>
-                            accessMutation.mutate({
-                              userId: member.user_id,
-                              active: !member.active,
-                            })
-                          }
-                        >
-                          {member.active ? 'Deactivate' : 'Activate'}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          {isMobile && (
-            <ResponsiveDataList
-              ariaLabel="Staff"
-              items={staffQuery.data.staff.map((member) => {
-                const isSelf = member.user_id === auth.access?.profileId
-                return {
-                  id: member.user_id,
-                  title: member.full_name,
-                  description: `${member.email}${isSelf ? ' · You' : ''}`,
-                  badge: (
-                    <span
-                      className={`status-badge ${member.active ? 'status-active' : 'status-inactive'}`}
-                    >
-                      {member.active ? 'Active' : 'Inactive'}
-                    </span>
-                  ),
-                  fields: [
-                    {
-                      label: 'Role',
-                      value: (
-                        <select
-                          aria-label={`Role for ${member.full_name}`}
-                          disabled={!canManage || isSelf || roleMutation.isPending}
-                          value={member.role_code ?? ''}
-                          onChange={(event) =>
-                            roleMutation.mutate({
-                              userId: member.user_id,
-                              roleCode: event.target.value as StaffRole,
-                            })
-                          }
-                        >
-                          <option value="" disabled>
-                            Unassigned
-                          </option>
-                          <option value="ORDER_MANAGER">Order Manager</option>
-                          <option value="EXECUTIVE_ADMIN">Executive Admin</option>
-                        </select>
-                      ),
-                    },
-                    {
-                      label: 'Joined',
-                      value: new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(
-                        new Date(member.created_at),
-                      ),
-                    },
-                    {
-                      label: 'Access',
-                      value: (
-                        <button
-                          className="table-action"
-                          disabled={!canManage || isSelf || accessMutation.isPending}
-                          type="button"
-                          onClick={() =>
-                            accessMutation.mutate({
-                              userId: member.user_id,
-                              active: !member.active,
-                            })
-                          }
-                        >
-                          {member.active ? 'Deactivate' : 'Activate'}
-                        </button>
-                      ),
-                    },
-                  ],
-                }
-              })}
-            />
-          )}
-        </>
-      )}
-
-      <div className="pagination" aria-label="Staff pages">
-        <button
-          type="button"
-          disabled={filters.page <= 1}
-          onClick={() => setFilters((current) => ({ ...current, page: current.page - 1 }))}
-        >
-          Previous
-        </button>
-        <span>
-          Page {filters.page} of {pages} · {staffQuery.data?.total ?? 0} staff
-        </span>
-        <button
-          type="button"
-          disabled={filters.page >= pages}
-          onClick={() => setFilters((current) => ({ ...current, page: current.page + 1 }))}
-        >
-          Next
-        </button>
-      </div>
+      </BottomSheet>
     </section>
   )
 }

@@ -5,7 +5,13 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { AppShell } from './shell/AppShell'
 import { AuthLayout } from '../features/auth/AuthLayout'
-import { PermissionRoute, ProtectedRoute, PublicOnlyRoute } from '../features/auth/AuthGuards'
+import {
+  PermissionRoute,
+  ProtectedRoute,
+  PublicOnlyRoute,
+  RoleRedirect,
+  RoleRoute,
+} from '../features/auth/AuthGuards'
 
 const LoginPage = lazy(() =>
   import('../features/auth/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })),
@@ -20,9 +26,9 @@ const SetPasswordPage = lazy(() =>
     default: SetPasswordPage,
   })),
 )
-const CustomerDetailPage = lazy(() =>
-  import('../features/customers/CustomerDetailPage').then(({ CustomerDetailPage }) => ({
-    default: CustomerDetailPage,
+const AuthCallbackPage = lazy(() =>
+  import('../features/auth/AuthCallbackPage').then(({ AuthCallbackPage }) => ({
+    default: AuthCallbackPage,
   })),
 )
 const AnalyticsPage = lazy(() =>
@@ -53,6 +59,11 @@ const ManualOrderPage = lazy(() =>
 const OrderDetailPage = lazy(() =>
   import('../features/orders/OrderDetailPage').then(({ OrderDetailPage }) => ({
     default: OrderDetailPage,
+  })),
+)
+const NewOrdersPage = lazy(() =>
+  import('../features/orders/NewOrdersPage').then(({ NewOrdersPage }) => ({
+    default: NewOrdersPage,
   })),
 )
 const OrdersPage = lazy(() =>
@@ -96,6 +107,7 @@ export const router = createBrowserRouter([
       { path: '/reset-password', element: lazyRoute(() => <SetPasswordPage mode="recovery" />) },
       { path: '/invite', element: lazyRoute(() => <SetPasswordPage mode="invite" />) },
       { path: '/invite/:token', element: lazyRoute(() => <SetPasswordPage mode="invite" />) },
+      { path: '/auth/callback', element: lazyRoute(AuthCallbackPage) },
     ],
   },
   {
@@ -106,26 +118,35 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="/dashboard" replace /> },
-          { path: 'dashboard', element: lazyRoute(DashboardPage) },
+          { index: true, element: <RoleRedirect /> },
+          { path: 'dashboard', element: <Navigate to="/" replace /> },
+          {
+            path: 'home',
+            element: <RoleRoute role="ORDER_MANAGER">{lazyRoute(DashboardPage)}</RoleRoute>,
+          },
           { path: 'orders', element: lazyRoute(OrdersPage) },
+          {
+            path: 'new',
+            element: <RoleRoute role="ORDER_MANAGER">{lazyRoute(NewOrdersPage)}</RoleRoute>,
+          },
           { path: 'orders/new', element: lazyRoute(ManualOrderPage) },
           { path: 'orders/:orderId', element: lazyRoute(OrderDetailPage) },
-          { path: 'customers', element: lazyRoute(CustomersPage) },
-          { path: 'customers/:customerId', element: lazyRoute(CustomerDetailPage) },
+          { path: 'customers', element: <Navigate to="/people" replace /> },
           {
-            path: 'analytics',
+            path: 'people',
             element: (
-              <PermissionRoute permission="analytics.read">
-                {lazyRoute(AnalyticsPage)}
+              <PermissionRoute permission="customer.read">
+                {lazyRoute(CustomersPage)}
               </PermissionRoute>
             ),
           },
           {
+            path: 'analytics',
+            element: <RoleRoute role="EXECUTIVE_ADMIN">{lazyRoute(AnalyticsPage)}</RoleRoute>,
+          },
+          {
             path: 'staff',
-            element: (
-              <PermissionRoute permission="staff.read">{lazyRoute(StaffPage)}</PermissionRoute>
-            ),
+            element: <RoleRoute role="EXECUTIVE_ADMIN">{lazyRoute(StaffPage)}</RoleRoute>,
           },
           {
             path: 'settings',

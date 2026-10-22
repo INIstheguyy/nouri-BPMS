@@ -52,14 +52,21 @@ describe('PublicOrderPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByLabelText(/1 Pack/))
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Full name'), 'Ada Okafor')
-    await user.type(screen.getByLabelText('WhatsApp number'), '08031234567')
-    await user.type(screen.getByLabelText('Area'), 'Yaba')
+    await user.type(screen.getByLabelText('Phone number'), '08031234567')
+    await user.type(screen.getByLabelText('Area / neighbourhood'), 'Yaba')
     await user.type(screen.getByLabelText('Delivery address'), '12 Example Street')
+    await user.click(screen.getByRole('button', { name: 'Continue to packages' }))
+
+    expect(await screen.findByText('Step 2 of 2')).toBeInTheDocument()
+    expect(await screen.findByRole('radio', { name: /Cash on delivery/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /Pay online/ })).toBeDisabled()
+    await user.click(await screen.findByLabelText(/1 Pack/))
     await user.click(screen.getByRole('button', { name: 'Place order' }))
 
-    expect(await screen.findByText(/Order number:/)).toHaveTextContent('NOU-20261013-00001')
+    expect(await screen.findByText('NOU-20261013-00001')).toBeInTheDocument()
+    expect(screen.getByText('We’ll call you within 30 minutes.')).toBeInTheDocument()
     expect(createOrderMock).toHaveBeenCalledOnce()
     const [payload, key] = createOrderMock.mock.calls[0] ?? []
     expect(key).toMatch(/^public-order-/)
@@ -70,5 +77,16 @@ describe('PublicOrderPage', () => {
       attribution: { source: 'TIKTOK', campaign: 'test-campaign' },
     })
     expect(payload).not.toHaveProperty('price')
+  })
+
+  it('keeps customers on contact details until required fields are valid', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Continue to packages' }))
+
+    expect(await screen.findByText('Enter your full name.')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    expect(screen.queryByText('Pick a package.')).not.toBeInTheDocument()
   })
 })

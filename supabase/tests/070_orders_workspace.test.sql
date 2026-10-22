@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(23);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -113,6 +113,16 @@ select is(
   'order queue reports the total count independently of page size'
 );
 select is(
+  (select delivery_area from public.list_orders(search_text => '0803 444 5566') limit 1),
+  'Ikeja',
+  'order queue returns the delivery area used by operational rows'
+);
+select is(
+  (select count(*) from public.list_orders(search_text => '0803 444 5566', queue_filter => 'new')),
+  1::bigint,
+  'order queue applies the redesign queue filter'
+);
+select is(
   public.get_order_detail((select order_id from manual_result)) ->> 'orderNumber',
   (select order_number from manual_result),
   'order detail returns the requested order'
@@ -143,6 +153,43 @@ select is(
   (select count(*) from public.order_events where entity_id = (select order_id from manual_result) and action = 'ORDER_NOTES_UPDATED'),
   1::bigint,
   'notes update creates an audit event'
+);
+
+select public.add_order_note(
+  (select order_id from manual_result),
+  'Customer prefers an afternoon call'
+);
+select is(
+  (
+    select note
+    from public.order_events
+    where order_id = (select order_id from manual_result) and action = 'ORDER_NOTE_ADDED'
+    order by created_at desc
+    limit 1
+  ),
+  'Customer prefers an afternoon call',
+  'thread note command records note text'
+);
+select is(
+  (
+    select actor_name
+    from public.order_events
+    where order_id = (select order_id from manual_result) and action = 'ORDER_NOTE_ADDED'
+    order by created_at desc
+    limit 1
+  ),
+  'Orders Manager',
+  'thread events retain the actor display name'
+);
+select is(
+  (
+    select note
+    from public.list_recent_order_events(20)
+    where action = 'ORDER_NOTE_ADDED'
+    limit 1
+  ),
+  'Customer prefers an afternoon call',
+  'operations activity feed returns recent attributed order events'
 );
 
 reset role;

@@ -11,6 +11,7 @@ export async function listOrders(filters: OrderFilters): Promise<OrderPageResult
   const { data, error } = await supabase.rpc('list_orders', {
     page_number: filters.page,
     page_size: filters.pageSize,
+    ...(filters.queue ? { queue_filter: filters.queue } : {}),
     ...(filters.search ? { search_text: filters.search } : {}),
     ...(filters.status ? { status_filter: filters.status } : {}),
     ...(filters.source ? { source_filter: filters.source } : {}),
@@ -64,4 +65,13 @@ export async function updateOrderNotes(
     updated_internal_note: internalNote,
   })
   if (error) throw error
+}
+
+export async function addOrderNote(orderId: string, note: string) {
+  const { data, error } = await supabase.rpc('add_order_note', {
+    target_order_id: orderId,
+    note_text: note,
+  })
+  if (error) throw error
+  return data
 }

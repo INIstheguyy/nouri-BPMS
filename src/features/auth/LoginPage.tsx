@@ -32,7 +32,7 @@ export function LoginPage() {
         setSubmitError('The email or password is incorrect, or this account cannot sign in.')
         return
       }
-      void navigate(locationState?.from ?? '/dashboard', { replace: true })
+      void navigate(locationState?.from ?? '/', { replace: true })
     } catch {
       setSubmitError('The email or password is incorrect, or this account cannot sign in.')
     }

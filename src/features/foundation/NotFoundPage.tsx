@@ -6,8 +6,8 @@ export function NotFoundPage() {
       <p className="eyebrow">Page not found</p>
       <h1>We could not find that page.</h1>
       <p>Check the address or return to your workspace.</p>
-      <Link className="secondary-action" to="/dashboard">
-        Return to dashboard
+      <Link className="secondary-action" to="/">
+        Return home
       </Link>
     </main>
   )

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 import { AuthContext } from '../features/auth/AuthContext'
 import type { AuthContextValue } from '../features/auth/types'
+import { ToastHost, ToastProvider } from '../shared/ui/Toast'
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -51,7 +52,14 @@ export function renderWithProviders(
   }: RenderWithProvidersOptions = {},
 ) {
   function Providers({ children }: { children: ReactNode }) {
-    const content = <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    const content = (
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          {children}
+          <ToastHost />
+        </ToastProvider>
+      </QueryClientProvider>
+    )
     return (
       <MemoryRouter initialEntries={[route]}>
         {auth ? <AuthContext.Provider value={auth}>{content}</AuthContext.Provider> : content}

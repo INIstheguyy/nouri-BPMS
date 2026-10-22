@@ -1,42 +1,46 @@
 .app-frame {
   min-height: 100vh;
-  background: radial-gradient(circle at 90% 0%, rgb(224 185 106 / 24%), transparent 28rem), #f4f1e8;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .topbar {
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  right: 0;
+  left: 0;
   display: flex;
-  min-height: 78px;
+  height: var(--topbar-h);
   align-items: center;
   gap: 2rem;
-  padding: 0 4vw;
-  border-bottom: 1px solid rgb(24 53 45 / 12%);
-  background: rgb(244 241 232 / 88%);
+  padding: 0 var(--gx-r) 0 var(--gx);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
   backdrop-filter: blur(16px);
 }
 
 .account-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 .header-icon-action {
   display: inline-grid;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border: 1px solid rgb(18 58 47 / 18%);
-  border-radius: 13px;
-  background: rgb(255 253 248 / 72%);
-  color: #31584c;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
   cursor: pointer;
-  text-decoration: none;
 }
 
 .header-icon-action:hover {
-  border-color: rgb(18 58 47 / 32%);
-  background: #e7eadf;
-  color: #123a2f;
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .header-icon-action .bottom-nav-icon {
@@ -44,49 +48,34 @@
   height: 1.2rem;
 }
 
-.create-order-action {
-  border-color: #c8841d;
-  background: #d79b2d;
-  color: #122d25;
-}
-
-.create-order-action:hover {
-  border-color: #a86e10;
-  background: #e5a638;
-  color: #122d25;
-}
-
 .account-name {
   max-width: 11rem;
   overflow: hidden;
-  color: #587068;
-  font-size: 0.85rem;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.sign-out-action {
-  color: #587068;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   color: inherit;
   text-decoration: none;
 }
 
 .brand-mark {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   place-items: center;
-  border-radius: 13px;
-  background: #123a2f;
-  color: #f3d28e;
-  font-family: Georgia, serif;
-  font-size: 1.5rem;
+  border-radius: 11px;
+  background: var(--primary);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-black);
 }
 
 .brand strong,
@@ -94,35 +83,81 @@
   display: block;
 }
 
+.brand strong {
+  font-family: var(--font-display);
+  font-weight: var(--weight-black);
+  line-height: 1;
+}
+
 .brand small {
-  margin-top: 0.1rem;
-  color: #64756e;
-  font-size: 0.7rem;
-  letter-spacing: 0.13em;
+  margin-top: 0.15rem;
+  color: var(--ink-2);
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-nav {
+.topbar nav {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.25rem;
   margin-left: auto;
 }
 
 .nav-link {
   border-radius: 999px;
-  padding: 0.65rem 1rem;
-  color: #587068;
+  padding: 0.5rem 0.85rem;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semi);
   text-decoration: none;
 }
 
 .nav-link:hover,
 .nav-link.active {
-  background: #e5eadf;
-  color: #123a2f;
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .page-content {
-  width: min(1180px, 92vw);
-  margin: 0 auto;
-  padding: 6rem 0;
+  position: fixed;
+  inset: var(--topbar-h) 0 0;
+  overflow-y: auto;
+  padding: clamp(2rem, 6vw, 5rem) max(var(--gx-r), calc((100vw - 1180px) / 2))
+    clamp(2rem, 6vw, 5rem) max(var(--gx), calc((100vw - 1180px) / 2));
+  overscroll-behavior-y: contain;
+}
+
+.bottom-nav-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+[data-role='exec'] .brand-mark {
+  background: var(--gold);
+  color: #0a1a12;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    justify-content: space-between;
+  }
+
+  .account-actions {
+    margin-left: auto;
+  }
+
+  .account-name {
+    display: none;
+  }
+
+  .page-content {
+    bottom: var(--nav-h);
+    padding: 1.5rem var(--gx-r) 2.5rem var(--gx);
+  }
 }

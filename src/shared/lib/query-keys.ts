@@ -10,6 +10,8 @@ export const queryKeys = {
   },
   dashboard: {
     executive: (range: { from: string; to: string }) => ['executive-dashboard', range] as const,
+    revenue: (range: { from: string; to: string }) => ['executive-revenue', range] as const,
+    feed: () => ['dashboard-feed'] as const,
     operations: (date: string) => ['operations-dashboard', date] as const,
   },
   delivery: {

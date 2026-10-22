@@ -8,11 +8,13 @@ export type OrderSource = Database['public']['Enums']['order_source']
 export type PaymentMethod = Database['public']['Enums']['payment_method']
 export type PaymentStatus = Database['public']['Enums']['payment_status']
 export type DeliveryStatus = Database['public']['Enums']['delivery_status']
+export type OrderQueueFilter = '' | 'new' | 'follow-up' | 'delivery' | 'failed' | 'done'
 
 export type OrderSummary = ListOrderRow
 
 export interface OrderFilters {
   search: string
+  queue: OrderQueueFilter
   status: '' | OrderStatus
   source: '' | OrderSource
   paymentMethod: '' | PaymentMethod
@@ -96,6 +98,8 @@ export const orderDetailSchema = z.object({
       fromState: nullableString,
       toState: nullableString,
       actorUserId: nullableString,
+      actorName: nullableString,
+      note: nullableString,
       metadata: z.record(z.string(), z.unknown()),
       createdAt: z.string(),
     }),

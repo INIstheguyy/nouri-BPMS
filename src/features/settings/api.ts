@@ -3,6 +3,12 @@ import { z } from 'zod'
 import { supabase } from '../../lib/supabase/client'
 import type { Database } from '../../types/database'
 
+export async function updateMyProfileName(fullName: string) {
+  const { data, error } = await supabase.rpc('update_my_profile_name', { new_full_name: fullName })
+  if (error) throw error
+  return data
+}
+
 const settingsSchema = z.object({
   duplicateWarningHours: z.number().int(),
   defaultCurrency: z.string(),

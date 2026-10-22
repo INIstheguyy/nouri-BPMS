@@ -13,8 +13,8 @@ export function RouteErrorBoundary() {
           ? 'Check the address or return to your workspace.'
           : 'Refresh the page. If the problem continues, contact an Executive Admin.'}
       </p>
-      <a className="secondary-action" href="/dashboard">
-        Return to dashboard
+      <a className="secondary-action" href="/">
+        Return home
       </a>
     </main>
   )

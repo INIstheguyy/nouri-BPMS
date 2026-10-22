@@ -329,6 +329,7 @@ export type Database = {
       order_events: {
         Row: {
           action: string
+          actor_name: string | null
           actor_user_id: string | null
           created_at: string
           entity_id: string
@@ -336,12 +337,14 @@ export type Database = {
           from_state: string | null
           id: string
           metadata: NonNullable<Json>
+          note: string | null
           order_id: string | null
           to_state: string | null
         }
         ComputedFields: never
         Insert: {
           action: string
+          actor_name?: string | null
           actor_user_id?: string | null
           created_at?: string
           entity_id: string
@@ -349,11 +352,13 @@ export type Database = {
           from_state?: string | null
           id?: string
           metadata?: NonNullable<Json>
+          note?: string | null
           order_id?: string | null
           to_state?: string | null
         }
         Update: {
           action?: string
+          actor_name?: string | null
           actor_user_id?: string | null
           created_at?: string
           entity_id?: string
@@ -361,6 +366,7 @@ export type Database = {
           from_state?: string | null
           id?: string
           metadata?: NonNullable<Json>
+          note?: string | null
           order_id?: string | null
           to_state?: string | null
         }
@@ -920,6 +926,7 @@ export type Database = {
       }
     }
     Functions: {
+      add_order_note: { Args: { note_text: string; target_order_id: string }; Returns: string }
       cancel_order: {
         Args: { cancellation_code: string; cancellation_note?: string; target_order_id: string }
         Returns: Database['public']['Enums']['order_status']
@@ -1041,6 +1048,7 @@ export type Database = {
       get_customer_detail: { Args: { target_customer_id: string }; Returns: Json }
       get_duplicate_warning_hours: { Args: Record<PropertyKey, never>; Returns: number }
       get_executive_dashboard: { Args: { date_from?: string; date_to?: string }; Returns: Json }
+      get_revenue_series: { Args: { date_from: string; date_to: string }; Returns: Json }
       get_my_access: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1120,6 +1128,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_recent_order_events: {
+        Args: { event_limit?: number }
+        Returns: {
+          action: string
+          actor_name: string | null
+          created_at: string
+          event_id: string
+          note: string | null
+          order_id: string
+          order_number: string
+        }[]
+      }
       list_orders: {
         Args: {
           created_from?: string
@@ -1127,6 +1147,7 @@ export type Database = {
           page_number?: number
           page_size?: number
           payment_method_filter?: string
+          queue_filter?: string
           search_text?: string
           source_filter?: string
           status_filter?: string
@@ -1136,6 +1157,7 @@ export type Database = {
           currency: string
           customer_name: string
           customer_phone: string
+          delivery_area: string
           delivery_status: Database['public']['Enums']['delivery_status']
           offer_name: string
           order_id: string
@@ -1261,6 +1283,7 @@ export type Database = {
         }
         Returns: Json
       }
+      update_my_profile_name: { Args: { new_full_name: string }; Returns: string }
       update_order_notes: {
         Args: {
           target_order_id: string
