@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { ModalDialog } from '../../shared/ui/ModalDialog'
+import { useToast } from '../../shared/ui/Toast'
 import { useAuth } from '../auth/useAuth'
 import { runDeliveryCommand } from './api/delivery'
 import type { DeliveryCommand, OrderDetail } from './api/types'
@@ -27,6 +28,7 @@ function today() {
 
 export function DeliveryWorkflowActions({ order }: { order: OrderDetail }) {
   const auth = useAuth()
+  const toast = useToast()
   const { invalidateOrder } = useOrderInvalidation()
   const [action, setAction] = useState<DeliveryAction>(null)
   const [scheduledDate, setScheduledDate] = useState(order.delivery.scheduledDate ?? today())
@@ -45,10 +47,17 @@ export function DeliveryWorkflowActions({ order }: { order: OrderDetail }) {
   const [note, setNote] = useState('')
   const mutation = useMutation({
     mutationFn: runDeliveryCommand,
-    onSuccess: async () => {
+    onSuccess: async (_data, command) => {
+      const messages: Partial<Record<DeliveryCommand['type'], string>> = {
+        SCHEDULE: 'Delivery scheduled.',
+        DISPATCH: 'Order dispatched.',
+        DELIVER: 'Delivery recorded.',
+        FAIL: 'Delivery failure recorded.',
+      }
       setAction(null)
       setNote('')
       await invalidateOrder(order.id, { deliveryAttention: true })
+      toast(messages[command.type] ?? 'Delivery updated.')
     },
   })
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { formatMoney } from '../../shared/lib/money'
 import { ModalDialog } from '../../shared/ui/ModalDialog'
+import { useToast } from '../../shared/ui/Toast'
 import { runOrderWorkflowCommand } from './api/workflow'
 import type { OrderDetail, OrderStatus, WorkflowCommand } from './api/types'
 import { useOrderInvalidation } from './hooks/useOrderInvalidation'
@@ -30,6 +31,7 @@ const statuses: OrderStatus[] = [
 
 export function OrderWorkflowActions({ order }: { order: OrderDetail }) {
   const auth = useAuth()
+  const toast = useToast()
   const { invalidateOrder } = useOrderInvalidation()
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [reasonCode, setReasonCode] = useState('CUSTOMER_REQUEST')
@@ -37,10 +39,19 @@ export function OrderWorkflowActions({ order }: { order: OrderDetail }) {
   const [overrideStatus, setOverrideStatus] = useState<OrderStatus>('NEW')
   const mutation = useMutation({
     mutationFn: runOrderWorkflowCommand,
-    onSuccess: async () => {
+    onSuccess: async (_data, command) => {
+      const messages: Partial<Record<WorkflowCommand['type'], string>> = {
+        CONTACT: 'Order marked as contacted.',
+        UNREACHABLE: 'Order marked as unreachable.',
+        CONFIRM: 'Order confirmed.',
+        CANCEL: 'Order cancelled.',
+        COMPLETE: 'Order completed.',
+        OVERRIDE: 'Status override applied.',
+      }
       setPendingAction(null)
       setReasonNote('')
       await invalidateOrder(order.id)
+      toast(messages[command.type] ?? 'Order updated.')
     },
   })
 

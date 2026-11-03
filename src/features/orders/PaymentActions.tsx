@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { ModalDialog } from '../../shared/ui/ModalDialog'
+import { useToast } from '../../shared/ui/Toast'
 import { useAuth } from '../auth/useAuth'
 import { initializePrepaidPayment, markCodPaid } from './api/payments'
 import type { OrderDetail, PrepaidInitialization } from './api/types'
@@ -9,6 +10,7 @@ import { useOrderInvalidation } from './hooks/useOrderInvalidation'
 
 export function PaymentActions({ order }: { order: OrderDetail }) {
   const auth = useAuth()
+  const toast = useToast()
   const { invalidateOrder } = useOrderInvalidation()
   const [showCodDialog, setShowCodDialog] = useState(false)
   const [collectionNote, setCollectionNote] = useState('')
@@ -20,6 +22,7 @@ export function PaymentActions({ order }: { order: OrderDetail }) {
       setShowCodDialog(false)
       setCollectionNote('')
       await invalidateOrder(order.id)
+      toast('Cash payment recorded.')
     },
   })
   const prepaidMutation = useMutation({
@@ -27,6 +30,7 @@ export function PaymentActions({ order }: { order: OrderDetail }) {
     onSuccess: async (result) => {
       setInitialization(result)
       await invalidateOrder(order.id)
+      toast('Prepaid payment initialized.')
     },
   })
 

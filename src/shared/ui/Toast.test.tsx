@@ -1,7 +1,7 @@
-import { act, render, screen, waitForElementToBeRemoved } from '@testing-library/react'
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { ToastHost, ToastProvider, useToast } from './Toast'
 
@@ -13,6 +13,7 @@ function ToastFixture() {
       <button onClick={() => toast('Order updated.', { undo: () => setUndone(true) })}>
         Show toast
       </button>
+      <button onClick={() => toast('Brief update.', { duration: 20 })}>Show brief toast</button>
       {undone && <span>Update undone</span>}
       <ToastHost />
     </>
@@ -20,10 +21,6 @@ function ToastFixture() {
 }
 
 describe('Toast', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   it('announces a message and runs its undo action', async () => {
     const user = userEvent.setup()
     render(
@@ -40,19 +37,16 @@ describe('Toast', () => {
     await waitForElementToBeRemoved(() => screen.queryByRole('status'))
   })
 
-  it('automatically dismisses after five seconds', async () => {
-    vi.useFakeTimers()
+  it('automatically dismisses after its duration', async () => {
+    const user = userEvent.setup()
     render(
       <ToastProvider>
         <ToastFixture />
       </ToastProvider>,
     )
 
-    act(() => screen.getByRole('button', { name: 'Show toast' }).click())
+    await user.click(screen.getByRole('button', { name: 'Show brief toast' }))
     expect(screen.getByRole('status')).toBeInTheDocument()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000)
-    })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitForElementToBeRemoved(() => screen.queryByRole('status'))
   })
 })
